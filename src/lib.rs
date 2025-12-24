@@ -3,7 +3,7 @@ mod builder;
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::*;
+    use crate::builder::Unit;
     use crate::unit;
     use crate::derive_unit;
 
@@ -57,6 +57,7 @@ mod tests {
         assert_eq!(f, g);
         assert!(d.approx_eq(e, None));
 
+        let f = g.abs();
 
         let sum = a + b + c;
 

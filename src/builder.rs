@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub trait Unit {
     const FACTOR: f32;
     const NAME: &'static str;
@@ -37,13 +38,95 @@ macro_rules! unit {
             }
 
             #[allow(dead_code)]
+            #[inline]
             pub fn value(&self) -> f32 {
                 self._si / U::FACTOR
             }
-        }
 
-        impl<U: Unit> $name<U> {
             #[allow(dead_code)]
+            #[inline]
+            pub fn abs(&self) -> Self {
+                Self{
+                    _si: libm::fabsf(self._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn ceil(&self) -> Self {
+                Self {
+                    _si: libm::ceilf(self._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn floor(&self) -> Self {
+                Self {
+                    _si: libm::floorf(self._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn sqrt(&self) -> Self {
+                Self {
+                    _si: libm::sqrtf(self._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            /*
+            // won't add cbrt, precision is kinda buns
+            pub fn cbrt(&self) -> Self {
+                Self {
+                    _si: self._si.cbrt(),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+            */
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn hypotf(&self, other: Self) -> Self {
+                Self {
+                    _si: libm::hypotf(self._si, other._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn modf(&self, other: Self) -> Self {
+                Self {
+                    _si: libm::fmodf(self._si, other._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn remainder(&self, other: Self) -> Self {
+                Self {
+                    _si: libm::remainderf(self._si, other._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
+            pub fn copysign(&self, other: Self) -> Self {
+                Self {
+                    _si: libm::copysignf(self._si, other._si),
+                    _unit: core::marker::PhantomData,
+                }
+            }
+
+            #[allow(dead_code)]
+            #[inline]
             pub fn approx_eq<T: Unit>(&self, other: $name<T>, tolerance: Option<f32>) -> bool {
                 let eps = tolerance.unwrap_or(core::f32::EPSILON);
                 (self._si - other._si).abs() < eps
@@ -51,11 +134,20 @@ macro_rules! unit {
         }
 
 
+
         impl<U: Unit, T: Unit> core::cmp::PartialEq<$name<T>> for $name<U> {
             fn eq(&self, other: &$name<T>) -> bool {
                 self._si == other._si
             }
         }
+
+        /*
+        impl<U: Unit, T: Unit> core::cmp::Ord<$name<T>> for $name<U> {
+            fn cmp(&self, other: &$name<T>) -> core::cmp::Ordering {
+                self._si.total_cmp(&other._si)
+            }
+        }
+        */
 
         impl<U: Unit> core::fmt::Display for $name<U> {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -197,4 +289,3 @@ macro_rules! derive_unit {
         }
     };
 }
-
