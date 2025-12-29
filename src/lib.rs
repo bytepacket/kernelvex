@@ -1,52 +1,18 @@
-mod builder;
-
+mod si;
+mod angles;
+mod pose;
+mod omniwheel;
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::Unit;
-    use crate::unit;
-    use crate::derive_unit;
+    use std::ops::AddAssign;
+    use crate::angles::{Angle, Degrees, Radians};
+    use crate::si::*;
+    use crate::pose::Pose;
+
 
     #[test]
     fn it_works() {
-        unit!(
-            Length,
-
-            Types {
-                Meter => 1.0,
-                Centimeter => 0.01,
-                Millimeter => 0.001,
-                Inch => 0.0254,
-                Foot => 0.3048,
-            }
-        );
-
-        unit!(
-            Time,
-            Types {
-                Seconds => 1.0,
-                Minutes => 60.0,
-                Hours => 3600.0,
-            }
-        );
-
-        derive_unit!(
-            Speed,
-
-            Types {
-                MeterPerSecond => 1.0,
-                CentimeterPerSecond => 0.01,
-                MillimeterPerSecond => 0.001,
-                FeetPerSecond => 0.3048,
-                InchPerSecond => 0.0254,
-            }
-            Conv {
-                Length / Time
-            }
-        );
-
-
-
         let a = Length::<Meter>::new(1.0);
         let b = Length::<Centimeter>::new(50.0);
         let c = Length::<Inch>::new(12.0);
@@ -60,6 +26,7 @@ mod tests {
         let f = g.abs();
 
         let sum = a + b + c;
+
 
         let sum_cm = sum.to::<Centimeter>();
         let sum_in = sum.to::<Inch>();
@@ -77,8 +44,25 @@ mod tests {
         let ratio = c / b;
         println!("{}", ratio);
 
-        let speed = a/f;
-        println!("{}", speed);
+        let x = Angle::<Degrees>::new(1.);
+        let y = x.to::<Radians>();
 
+        let _ = x.sin();
+
+        let mut z = Angle::<Radians>::new(2.0);
+
+        z += Angle::<Radians>::new(3.);
+
+        println!("{}", z);
+
+        println!("{}", y);
+
+        let p = Pose::new(-1., -2., 0.0.into());
+
+        let r = Pose::new(2., 1., 0.0.into());
+
+        let k = p * r;
+
+        println!("{}", k);
     }
 }
