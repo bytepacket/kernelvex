@@ -62,7 +62,6 @@ dependencies = [
  "libm",
  "nalgebra",
  "typenum",
- "vex-sdk",
  "vexide-devices",
 ]
 
