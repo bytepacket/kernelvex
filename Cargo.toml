@@ -2,6 +2,9 @@
 name = "kernelvex"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/bytepacket/kernelvex/"
+homepage = "https://www.2381.ca"
 
 [dependencies]
 libm = "0.2.15"
