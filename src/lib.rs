@@ -1,51 +1,38 @@
-mod si;
 mod angles;
-mod pose;
 mod omniwheel;
+mod pid;
+mod pose;
+mod sensors;
+mod si;
+mod utils;
 
 #[cfg(test)]
 mod tests {
-    use std::ops::AddAssign;
     use crate::angles::{Angle, Degrees, Radians};
-    use crate::si::*;
     use crate::pose::Pose;
-
+    use crate::si::{QAngle, QLength};
 
     #[test]
     fn it_works() {
-        let a = Length::<Meter>::new(1.0);
-        let b = Length::<Centimeter>::new(50.0);
-        let c = Length::<Inch>::new(12.0);
-        let d = Length::<Foot>::new(3.0);
-        let e = Length::<Inch>::new(36.0);
-        let f: Time<Seconds> = Time::<Seconds>::new(60.);
-        let g : Time<Minutes> = Time::<Minutes>::new(1.);
-        assert_eq!(f, g);
-        assert!(d.approx_eq(e, None));
-
-        let f = g.abs();
-
+        let a = QLength::from_meters(1.0);
+        let b = QLength::from_centimeters(50.0);
+        let c = QLength::from_inches(12.0);
         let sum = a + b + c;
 
+        let sum_cm = sum.as_centimeters();
+        let sum_in = sum.as_inches();
 
-        let sum_cm = sum.to::<Centimeter>();
-        let sum_in = sum.to::<Inch>();
-
-
-        println!("{}", sum);
+        println!("{:?}", sum);
         println!("{}", sum_cm);
         println!("{}", sum_in);
 
 
-        let doubled = d * 2.0;
-        println!("{}", doubled);
-
-
         let ratio = c / b;
-        println!("{}", ratio);
+        println!("{:?}", ratio);
 
-        let x = Angle::<Degrees>::new(1.);
-        let y = x.to::<Radians>();
+        let x = QAngle::from_degrees(1.);
+
+        let y = x.as_radians();
 
         let _ = x.sin();
 
@@ -54,12 +41,11 @@ mod tests {
         z += Angle::<Radians>::new(3.);
 
         println!("{}", z);
-
         println!("{}", y);
 
-        let p = Pose::new(-1., -2., 0.0.into());
+        let p = Pose::new(-1., -2., Default::default());
 
-        let r = Pose::new(2., 1., 0.0.into());
+        let r = Pose::new(2., 1., Default::default());
 
         let k = p * r;
 
