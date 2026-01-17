@@ -35,7 +35,6 @@
 // TODO: implement time
 
 use typenum::{Diff, Integer, Negate, Sum, P1, Z0};
-use vex_sdk::vexSystemTimeGet;
 use vexide_devices::math::Angle;
 
 /// A typed quantity with compile-time checked dimensions.
