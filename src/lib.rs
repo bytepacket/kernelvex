@@ -1,54 +1,30 @@
-mod angles;
-mod omniwheel;
-mod pid;
-mod pose;
-mod sensors;
-mod si;
-mod utils;
+//! # Kernelvex
+//!
+//! ## Modules
+//!
+//! - [`omniwheel`] - Tracking wheel implementation for odometry
+//! - [`pid`] - PID controller for closed-loop control
+//! - [`pose`] - 2D pose representation and transformations
+//! - [`sensors`] - Encoder trait for sensor abstraction
+//! - [`si`] - Type-safe unit system (length, angle, time)
+//! - [`utils`] - Utility types and helpers
 
-#[cfg(test)]
-mod tests {
-    use crate::angles::{Angle, Degrees, Radians};
-    use crate::pose::Pose;
-    use crate::si::{QAngle, QLength};
+pub mod omniwheel;
 
-    #[test]
-    fn it_works() {
-        let a = QLength::from_meters(1.0);
-        let b = QLength::from_centimeters(50.0);
-        let c = QLength::from_inches(12.0);
-        let sum = a + b + c;
+pub use crate::omniwheel::{OmniWheel, TrackingWheel};
 
-        let sum_cm = sum.as_centimeters();
-        let sum_in = sum.as_inches();
+pub mod pid;
 
-        println!("{:?}", sum);
-        println!("{}", sum_cm);
-        println!("{}", sum_in);
+pub use crate::pid::Pid;
 
+pub mod pose;
 
-        let ratio = c / b;
-        println!("{:?}", ratio);
+pub use crate::pose::Pose;
 
-        let x = QAngle::from_degrees(1.);
+pub mod sensors;
 
-        let y = x.as_radians();
+pub mod si;
 
-        let _ = x.sin();
+pub use crate::si::{QAngle, QLength, QTime};
 
-        let mut z = Angle::<Radians>::new(2.0);
-
-        z += Angle::<Radians>::new(3.);
-
-        println!("{}", z);
-        println!("{}", y);
-
-        let p = Pose::new(-1., -2., Default::default());
-
-        let r = Pose::new(2., 1., Default::default());
-
-        let k = p * r;
-
-        println!("{}", k);
-    }
-}
+pub mod utils;
