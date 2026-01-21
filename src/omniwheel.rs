@@ -69,7 +69,7 @@ impl OmniWheel {
 /// Trait for tracking sensors that measure distance traveled.
 ///
 /// Tracking sensors are used in odometry calculations to determine the robot's
-/// position. They provide methods to get the offset from the robot's c
+/// position. They provide methods to get the offset from the robot's center,
 /// measure distance traveled, and reset the accumulated distance.
 ///
 /// # Examples
@@ -166,10 +166,15 @@ impl<T: Encoder> TrackingWheel<T> {
     ///            Positive values indicate right side, negative indicates left side
     /// * `gearing` - Optional gearing ratio. If `None`, assumes 1:1 gearing.
     ///              A value of 2.0 means the encoder rotates twice per wheel rotation.
+    ///              Must be positive if provided.
     ///
     /// # Returns
     ///
     /// A new `TrackingWheel` instance with the encoder reset to zero.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `gearing` is provided and is less than or equal to zero.
     ///
     /// # Examples
     ///
@@ -197,6 +202,11 @@ impl<T: Encoder> TrackingWheel<T> {
     /// ```
     #[allow(unused)]
     pub fn new(encoder: T, wheel: OmniWheel, dist: QLength, gearing: Option<f64>) -> Self {
+        // Validate gearing ratio
+        if let Some(g) = gearing {
+            assert!(g > 0.0, "Gearing ratio must be positive, got {}", g);
+        }
+
         if dist.as_meters() > 0. {
             TrackingWheel {
                 encoder,
@@ -231,8 +241,6 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
                 / core::f64::consts::TAU;
 
-        self.total += distance;
-
         distance
     }
 
@@ -247,9 +255,9 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
                 / core::f64::consts::TAU;
 
-        let ret = self.total - distance;
+        let ret = distance - self.total;
 
-        self.total += distance;
+        self.total = distance;
 
         ret
     }
