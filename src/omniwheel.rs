@@ -153,6 +153,7 @@ pub struct TrackingWheel<T: Encoder> {
     orientation: Orientation,
     total: QLength,
     gearing: Option<f64>,
+    reversed: bool,
 }
 
 impl<T: Encoder> TrackingWheel<T> {
@@ -205,6 +206,7 @@ impl<T: Encoder> TrackingWheel<T> {
                 orientation: Orientation::Right,
                 total: Default::default(),
                 gearing,
+                reversed: false,
             }
         } else {
             TrackingWheel {
@@ -214,8 +216,52 @@ impl<T: Encoder> TrackingWheel<T> {
                 orientation: Orientation::Left,
                 total: Default::default(),
                 gearing,
+                reversed: false,
             }
         }
+    }
+
+    /// Sets whether the encoder direction should be reversed.
+    ///
+    /// This is useful when the encoder is mounted in the opposite direction
+    /// from what is expected. When reversed, positive encoder rotations will
+    /// be interpreted as negative distance traveled.
+    ///
+    /// # Arguments
+    ///
+    /// * `reversed` - `true` to reverse the encoder direction, `false` for normal operation
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::{TrackingWheel, OmniWheel};
+    /// use kernelvex::si::QLength;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let mut wheel = TrackingWheel::new(
+    ///     encoder,
+    ///     OmniWheel::Omni275,
+    ///     QLength::from_inches(5.0),
+    ///     None,
+    /// );
+    /// 
+    /// // If the encoder is reading backwards, reverse it
+    /// wheel.set_reversed(true);
+    /// ```
+    #[allow(unused)]
+    pub fn set_reversed(&mut self, reversed: bool) {
+        self.reversed = reversed;
+    }
+
+    /// Returns whether the encoder direction is reversed.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the encoder is reversed, `false` otherwise.
+    #[allow(unused)]
+    pub fn is_reversed(&self) -> bool {
+        self.reversed
     }
 
     /// Returns the orientation of the tracking wheel.
@@ -309,9 +355,13 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
     fn distance(&mut self) -> QLength {
         let circumference = self.wheel.size() * core::f64::consts::PI;
 
-        let distance =
+        let mut distance =
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
                 / core::f64::consts::TAU;
+
+        if self.reversed {
+            distance = -distance;
+        }
 
         self.total = distance;
 
@@ -325,14 +375,220 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
     fn delta(&mut self) -> QLength {
         let circumference = self.wheel.size() * core::f64::consts::PI;
 
-        let distance =
+        let mut distance =
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
                 / core::f64::consts::TAU;
+
+        if self.reversed {
+            distance = -distance;
+        }
 
         let ret = distance - self.total;
 
         self.total = distance;
 
         ret
+    }
+}
+
+/// Builder for creating [`TrackingWheel`] instances with a fluent API.
+///
+/// The builder pattern provides a more ergonomic way to construct tracking wheels,
+/// especially when you want to set optional parameters or when the construction
+/// becomes more complex.
+///
+/// # Examples
+///
+/// ```no_run
+/// use kernelvex::omniwheel::{TrackingWheelBuilder, OmniWheel};
+/// use kernelvex::si::QLength;
+/// # use kernelvex::sensors::Encoder;
+/// # let encoder: impl Encoder = todo!();
+///
+/// // Basic usage
+/// let wheel = TrackingWheelBuilder::new(encoder)
+///     .wheel_type(OmniWheel::Omni275)
+///     .offset(QLength::from_inches(5.0))
+///     .build();
+///
+/// // With all options
+/// let advanced_wheel = TrackingWheelBuilder::new(encoder)
+///     .wheel_type(OmniWheel::Omni325)
+///     .offset(QLength::from_inches(-6.0))
+///     .gearing(2.0)
+///     .reversed(true)
+///     .build();
+/// ```
+pub struct TrackingWheelBuilder<T: Encoder> {
+    encoder: T,
+    wheel: OmniWheel,
+    dist: QLength,
+    gearing: Option<f64>,
+    reversed: bool,
+}
+
+impl<T: Encoder> TrackingWheelBuilder<T> {
+    /// Creates a new builder with default values.
+    ///
+    /// # Arguments
+    ///
+    /// * `encoder` - The encoder to use for this tracking wheel
+    ///
+    /// # Defaults
+    ///
+    /// - Wheel type: `OmniWheel::Omni275`
+    /// - Offset: 0.0 inches
+    /// - Gearing: 1:1 (no gearing)
+    /// - Reversed: false
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::TrackingWheelBuilder;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let builder = TrackingWheelBuilder::new(encoder);
+    /// ```
+    #[allow(unused)]
+    pub fn new(encoder: T) -> Self {
+        Self {
+            encoder,
+            wheel: OmniWheel::Omni275,
+            dist: QLength::from_inches(0.0),
+            gearing: None,
+            reversed: false,
+        }
+    }
+
+    /// Sets the wheel type.
+    ///
+    /// # Arguments
+    ///
+    /// * `wheel` - The type of omni wheel to use
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::{TrackingWheelBuilder, OmniWheel};
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let builder = TrackingWheelBuilder::new(encoder)
+    ///     .wheel_type(OmniWheel::Omni325);
+    /// ```
+    #[allow(unused)]
+    pub fn wheel_type(mut self, wheel: OmniWheel) -> Self {
+        self.wheel = wheel;
+        self
+    }
+
+    /// Sets the offset distance from the robot's center.
+    ///
+    /// Positive values indicate the right side, negative values indicate the left side.
+    ///
+    /// # Arguments
+    ///
+    /// * `dist` - The perpendicular offset distance
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::TrackingWheelBuilder;
+    /// use kernelvex::si::QLength;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let builder = TrackingWheelBuilder::new(encoder)
+    ///     .offset(QLength::from_inches(5.5));
+    /// ```
+    #[allow(unused)]
+    pub fn offset(mut self, dist: QLength) -> Self {
+        self.dist = dist;
+        self
+    }
+
+    /// Sets the gearing ratio.
+    ///
+    /// A value of 2.0 means the encoder rotates twice per wheel rotation.
+    ///
+    /// # Arguments
+    ///
+    /// * `ratio` - The gearing ratio
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::TrackingWheelBuilder;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let builder = TrackingWheelBuilder::new(encoder)
+    ///     .gearing(2.0);
+    /// ```
+    #[allow(unused)]
+    pub fn gearing(mut self, ratio: f64) -> Self {
+        self.gearing = Some(ratio);
+        self
+    }
+
+    /// Sets whether the encoder direction should be reversed.
+    ///
+    /// # Arguments
+    ///
+    /// * `reversed` - `true` to reverse the encoder direction
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::TrackingWheelBuilder;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let builder = TrackingWheelBuilder::new(encoder)
+    ///     .reversed(true);
+    /// ```
+    #[allow(unused)]
+    pub fn reversed(mut self, reversed: bool) -> Self {
+        self.reversed = reversed;
+        self
+    }
+
+    /// Builds the [`TrackingWheel`].
+    ///
+    /// # Returns
+    ///
+    /// A new `TrackingWheel` instance with the configured parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::{TrackingWheelBuilder, OmniWheel};
+    /// use kernelvex::si::QLength;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let wheel = TrackingWheelBuilder::new(encoder)
+    ///     .wheel_type(OmniWheel::Omni275)
+    ///     .offset(QLength::from_inches(5.0))
+    ///     .build();
+    /// ```
+    #[allow(unused)]
+    pub fn build(self) -> TrackingWheel<T> {
+        let orientation = if self.dist.as_meters() > 0.0 {
+            Orientation::Right
+        } else {
+            Orientation::Left
+        };
+
+        TrackingWheel {
+            encoder: self.encoder,
+            wheel: self.wheel,
+            dist: self.dist,
+            orientation,
+            total: Default::default(),
+            gearing: self.gearing,
+            reversed: self.reversed,
+        }
     }
 }

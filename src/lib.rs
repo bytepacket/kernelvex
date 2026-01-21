@@ -11,7 +11,7 @@
 
 pub mod omniwheel;
 
-pub use crate::omniwheel::{OmniWheel, TrackingWheel};
+pub use crate::omniwheel::{OmniWheel, TrackingWheel, TrackingWheelBuilder};
 
 pub mod pid;
 
