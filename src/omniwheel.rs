@@ -217,6 +217,88 @@ impl<T: Encoder> TrackingWheel<T> {
             }
         }
     }
+
+    /// Returns the orientation of the tracking wheel.
+    ///
+    /// # Returns
+    ///
+    /// The orientation (`Left` or `Right`) based on the wheel's offset position.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::{TrackingWheel, OmniWheel};
+    /// use kernelvex::si::QLength;
+    /// use kernelvex::utils::Orientation;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let wheel = TrackingWheel::new(
+    ///     encoder,
+    ///     OmniWheel::Omni275,
+    ///     QLength::from_inches(5.0),
+    ///     None,
+    /// );
+    /// 
+    /// assert_eq!(wheel.orientation(), Orientation::Right);
+    /// ```
+    #[allow(unused)]
+    pub fn orientation(&self) -> Orientation {
+        self.orientation
+    }
+
+    /// Returns the raw encoder angle reading.
+    ///
+    /// This method provides direct access to the encoder's current rotation
+    /// without any conversion to linear distance. Useful for debugging and
+    /// diagnostics.
+    ///
+    /// # Returns
+    ///
+    /// The encoder's current rotation as a [`QAngle`].
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernelvex::omniwheel::{TrackingWheel, OmniWheel};
+    /// use kernelvex::si::QLength;
+    /// # use kernelvex::sensors::Encoder;
+    /// # let encoder: impl Encoder = todo!();
+    ///
+    /// let wheel = TrackingWheel::new(
+    ///     encoder,
+    ///     OmniWheel::Omni275,
+    ///     QLength::from_inches(5.0),
+    ///     None,
+    /// );
+    /// 
+    /// let angle = wheel.encoder_angle();
+    /// println!("Encoder at {} degrees", angle.as_degrees());
+    /// ```
+    #[allow(unused)]
+    pub fn encoder_angle(&self) -> crate::si::QAngle {
+        self.encoder.rotations()
+    }
+
+    /// Returns the wheel type used by this tracking wheel.
+    ///
+    /// # Returns
+    ///
+    /// The [`OmniWheel`] type.
+    #[allow(unused)]
+    pub fn wheel_type(&self) -> OmniWheel {
+        self.wheel
+    }
+
+    /// Returns the gearing ratio of this tracking wheel.
+    ///
+    /// # Returns
+    ///
+    /// The gearing ratio, or 1.0 if no gearing was specified.
+    #[allow(unused)]
+    pub fn gearing(&self) -> f64 {
+        self.gearing.unwrap_or(1.0)
+    }
 }
 
 impl<T: Encoder> Tracking for TrackingWheel<T> {
@@ -231,7 +313,7 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
                 / core::f64::consts::TAU;
 
-        self.total += distance;
+        self.total = distance;
 
         distance
     }
@@ -247,9 +329,9 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
                 / core::f64::consts::TAU;
 
-        let ret = self.total - distance;
+        let ret = distance - self.total;
 
-        self.total += distance;
+        self.total = distance;
 
         ret
     }
