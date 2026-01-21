@@ -48,6 +48,6 @@ impl Encoder for AdiEncoder<360> {
 
 impl Encoder for RotationSensor {
     fn rotations(&self) -> QAngle {
-        QAngle::from_radians(self.position().unwrap().as_turns())
+        QAngle::from_radians(self.position().unwrap().as_radians())
     }
 }
