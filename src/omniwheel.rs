@@ -471,8 +471,11 @@ mod tests {
         let delta = wheel.delta();
 
         let circumference = OmniWheel::Omni275.size() * core::f64::consts::PI;
-        // With 2:1 gearing and π radians rotation, we expect 1 full wheel rotation
-        let expected = circumference * 2.0 * core::f64::consts::PI / core::f64::consts::TAU;
+        // With 2:1 gearing and π radians rotation, we expect:
+        // - π radians = half encoder rotation
+        // - With 2:1 gearing, half encoder rotation = 1 full wheel rotation
+        // - 1 full wheel rotation = 1 circumference
+        let expected = circumference;
         assert!((delta.as_inches() - expected.as_inches()).abs() < 0.001);
     }
 }
