@@ -262,3 +262,217 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
         ret
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::si::QAngle;
+
+    /// Mock encoder for testing
+    struct MockEncoder {
+        rotation: QAngle,
+    }
+
+    impl MockEncoder {
+        fn new(rotation: QAngle) -> Self {
+            Self { rotation }
+        }
+
+        fn set_rotation(&mut self, rotation: QAngle) {
+            self.rotation = rotation;
+        }
+    }
+
+    impl Encoder for MockEncoder {
+        fn rotations(&self) -> QAngle {
+            self.rotation
+        }
+    }
+
+    #[test]
+    fn test_omniwheel_sizes() {
+        assert_eq!(OmniWheel::Omni275.size(), QLength::from_inches(2.75));
+        assert_eq!(OmniWheel::Omni325.size(), QLength::from_inches(3.25));
+        assert_eq!(OmniWheel::Omni4.size(), QLength::from_inches(4.125));
+        assert_eq!(OmniWheel::Anti275.size(), QLength::from_inches(2.75));
+        assert_eq!(OmniWheel::Anti325.size(), QLength::from_inches(3.25));
+        assert_eq!(OmniWheel::Anti4.size(), QLength::from_inches(4.0));
+    }
+
+    #[test]
+    fn test_tracking_wheel_creation_right() {
+        let encoder = MockEncoder::new(QAngle::from_radians(0.0));
+        let wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            None,
+        );
+
+        assert_eq!(wheel.offset(), QLength::from_inches(5.0));
+        assert_eq!(wheel.orientation, Orientation::Right);
+    }
+
+    #[test]
+    fn test_tracking_wheel_creation_left() {
+        let encoder = MockEncoder::new(QAngle::from_radians(0.0));
+        let wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(-5.0),
+            None,
+        );
+
+        assert_eq!(wheel.offset(), QLength::from_inches(-5.0));
+        assert_eq!(wheel.orientation, Orientation::Left);
+    }
+
+    #[test]
+    #[should_panic(expected = "Gearing ratio must be positive")]
+    fn test_negative_gearing_panics() {
+        let encoder = MockEncoder::new(QAngle::from_radians(0.0));
+        let _wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            Some(-1.0),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Gearing ratio must be positive")]
+    fn test_zero_gearing_panics() {
+        let encoder = MockEncoder::new(QAngle::from_radians(0.0));
+        let _wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            Some(0.0),
+        );
+    }
+
+    #[test]
+    fn test_distance_calculation_no_gearing() {
+        let encoder = MockEncoder::new(QAngle::from_radians(core::f64::consts::TAU)); // 1 full rotation
+        let mut wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            None,
+        );
+
+        let distance = wheel.distance();
+        let circumference = OmniWheel::Omni275.size() * core::f64::consts::PI;
+        
+        // After 1 rotation, distance should equal circumference
+        assert!((distance.as_inches() - circumference.as_inches()).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_distance_calculation_with_gearing() {
+        let encoder = MockEncoder::new(QAngle::from_radians(core::f64::consts::TAU)); // 1 encoder rotation
+        let mut wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            Some(2.0), // 2:1 gearing means encoder rotates twice per wheel rotation
+        );
+
+        let distance = wheel.distance();
+        let circumference = OmniWheel::Omni275.size() * core::f64::consts::PI;
+        
+        // With 2:1 gearing, 1 encoder rotation = 0.5 wheel rotations
+        let expected = circumference * 2.0;
+        assert!((distance.as_inches() - expected.as_inches()).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_delta_calculation() {
+        let encoder = MockEncoder::new(QAngle::from_radians(0.0));
+        let mut wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            None,
+        );
+
+        // First delta should be 0
+        let delta1 = wheel.delta();
+        assert!((delta1.as_inches()).abs() < 0.001);
+
+        // Rotate the encoder by 1 radian
+        wheel.encoder.set_rotation(QAngle::from_radians(1.0));
+        let delta2 = wheel.delta();
+        
+        // Delta should reflect the change
+        let circumference = OmniWheel::Omni275.size() * core::f64::consts::PI;
+        let expected = circumference * 1.0 / core::f64::consts::TAU;
+        assert!((delta2.as_inches() - expected.as_inches()).abs() < 0.001);
+
+        // Another rotation
+        wheel.encoder.set_rotation(QAngle::from_radians(2.0));
+        let delta3 = wheel.delta();
+        
+        // Delta should be the same (another 1 radian)
+        assert!((delta3.as_inches() - expected.as_inches()).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_reset() {
+        let encoder = MockEncoder::new(QAngle::from_radians(core::f64::consts::TAU));
+        let mut wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            None,
+        );
+
+        // Get initial distance
+        let _ = wheel.distance();
+        
+        // Reset should clear total
+        wheel.reset();
+        assert_eq!(wheel.total.as_inches(), 0.0);
+    }
+
+    #[test]
+    fn test_distance_does_not_accumulate() {
+        let encoder = MockEncoder::new(QAngle::from_radians(core::f64::consts::TAU));
+        let mut wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            None,
+        );
+
+        let distance1 = wheel.distance();
+        let distance2 = wheel.distance();
+        
+        // Calling distance() multiple times should return the same value
+        // (it should not accumulate on each call)
+        assert!((distance1.as_inches() - distance2.as_inches()).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_delta_with_gearing() {
+        let encoder = MockEncoder::new(QAngle::from_radians(0.0));
+        let mut wheel = TrackingWheel::new(
+            encoder,
+            OmniWheel::Omni275,
+            QLength::from_inches(5.0),
+            Some(2.0),
+        );
+
+        // First delta
+        let _ = wheel.delta();
+
+        // Rotate encoder by π radians (half rotation)
+        wheel.encoder.set_rotation(QAngle::from_radians(core::f64::consts::PI));
+        let delta = wheel.delta();
+
+        let circumference = OmniWheel::Omni275.size() * core::f64::consts::PI;
+        // With 2:1 gearing and π radians rotation, we expect 1 full wheel rotation
+        let expected = circumference * 2.0 * core::f64::consts::PI / core::f64::consts::TAU;
+        assert!((delta.as_inches() - expected.as_inches()).abs() < 0.001);
+    }
+}
