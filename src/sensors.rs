@@ -23,6 +23,7 @@ use vexide_devices::smart::rotation::RotationSensor;
 /// let rotations = encoder.rotations();
 /// println!("Total rotations: {} turns", rotations.as_turns());
 /// ```
+
 pub trait Encoder {
     /// Returns the total accumulated rotation as a typed angle.
     ///
@@ -38,16 +39,28 @@ pub trait Encoder {
     /// May panic if the sensor fails to read its position. This depends on
     /// the underlying sensor implementation.
     fn rotations(&self) -> QAngle;
+
+    fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 impl Encoder for AdiEncoder<360> {
     fn rotations(&self) -> QAngle {
         QAngle::from_turns(self.position().unwrap().as_turns())
     }
+
+    fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.reset_position()?;
+        Ok(())
+    }
 }
 
 impl Encoder for RotationSensor {
     fn rotations(&self) -> QAngle {
         QAngle::from_radians(self.position().unwrap().as_turns())
+    }
+
+    fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.reset_position()?;
+        Ok(())
     }
 }

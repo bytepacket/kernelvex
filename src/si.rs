@@ -69,7 +69,7 @@ where
     _phantom: std::marker::PhantomData<(L, T, A)>,
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::Add for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::Add for RQuantity<L, T, A> {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -80,7 +80,7 @@ impl<L: Integer, T: Integer, A: Integer> core::ops::Add for RQuantity<L, T, A> {
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::Sub for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::Sub for RQuantity<L, T, A> {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -91,7 +91,7 @@ impl<L: Integer, T: Integer, A: Integer> core::ops::Sub for RQuantity<L, T, A> {
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::Mul<f64> for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::Mul<f64> for RQuantity<L, T, A> {
     type Output = Self;
 
     fn mul(self, rhs: f64) -> Self::Output {
@@ -102,7 +102,7 @@ impl<L: Integer, T: Integer, A: Integer> core::ops::Mul<f64> for RQuantity<L, T,
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::Mul<RQuantity<L, T, A>> for f64 {
+impl<L: Integer, T: Integer, A: Integer> std::ops::Mul<RQuantity<L, T, A>> for f64 {
     type Output = RQuantity<L, T, A>;
 
     fn mul(self, rhs: RQuantity<L, T, A>) -> Self::Output {
@@ -113,11 +113,11 @@ impl<L: Integer, T: Integer, A: Integer> core::ops::Mul<RQuantity<L, T, A>> for 
     }
 }
 
-impl<L, T, A, L2, T2, A2> core::ops::Mul<RQuantity<L2, T2, A2>> for RQuantity<L, T, A>
+impl<L, T, A, L2, T2, A2> std::ops::Mul<RQuantity<L2, T2, A2>> for RQuantity<L, T, A>
 where
-    L: Integer + core::ops::Add<L2>,
-    T: Integer + core::ops::Add<T2>,
-    A: Integer + core::ops::Add<A2>,
+    L: Integer + std::ops::Add<L2>,
+    T: Integer + std::ops::Add<T2>,
+    A: Integer + std::ops::Add<A2>,
     L2: Integer,
     T2: Integer,
     A2: Integer,
@@ -130,12 +130,12 @@ where
     fn mul(self, rhs: RQuantity<L2, T2, A2>) -> Self::Output {
         Self::Output {
             value: self.value * rhs.value,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::Div<f64> for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::Div<f64> for RQuantity<L, T, A> {
     type Output = Self;
 
     fn div(self, rhs: f64) -> Self::Output {
@@ -146,11 +146,11 @@ impl<L: Integer, T: Integer, A: Integer> core::ops::Div<f64> for RQuantity<L, T,
     }
 }
 
-impl<L, T, A> core::ops::Div<RQuantity<L, T, A>> for f64
+impl<L, T, A> std::ops::Div<RQuantity<L, T, A>> for f64
 where
-    L: Integer + core::ops::Neg,
-    T: Integer + core::ops::Neg,
-    A: Integer + core::ops::Neg,
+    L: Integer + std::ops::Neg,
+    T: Integer + std::ops::Neg,
+    A: Integer + std::ops::Neg,
 
     Negate<L>: Integer,
     Negate<T>: Integer,
@@ -166,11 +166,11 @@ where
     }
 }
 
-impl<L, T, A, L2, T2, A2> core::ops::Div<RQuantity<L2, T2, A2>> for RQuantity<L, T, A>
+impl<L, T, A, L2, T2, A2> std::ops::Div<RQuantity<L2, T2, A2>> for RQuantity<L, T, A>
 where
-    L: Integer + core::ops::Sub<L2>,
-    T: Integer + core::ops::Sub<T2>,
-    A: Integer + core::ops::Sub<A2>,
+    L: Integer + std::ops::Sub<L2>,
+    T: Integer + std::ops::Sub<T2>,
+    A: Integer + std::ops::Sub<A2>,
     L2: Integer,
     T2: Integer,
     A2: Integer,
@@ -183,65 +183,65 @@ where
     fn div(self, rhs: RQuantity<L2, T2, A2>) -> Self::Output {
         Self::Output {
             value: self.value / rhs.value,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::AddAssign<RQuantity<L, T, A>>
+impl<L: Integer, T: Integer, A: Integer> std::ops::AddAssign<RQuantity<L, T, A>>
     for RQuantity<L, T, A>
 {
     fn add_assign(&mut self, rhs: RQuantity<L, T, A>) {
         *self = Self {
             value: self.value + rhs.value,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::SubAssign<RQuantity<L, T, A>>
+impl<L: Integer, T: Integer, A: Integer> std::ops::SubAssign<RQuantity<L, T, A>>
     for RQuantity<L, T, A>
 {
     fn sub_assign(&mut self, rhs: RQuantity<L, T, A>) {
         *self = Self {
             value: self.value - rhs.value,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::MulAssign<f64> for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::MulAssign<f64> for RQuantity<L, T, A> {
     fn mul_assign(&mut self, rhs: f64) {
         *self = Self {
             value: self.value * rhs,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::DivAssign<f64> for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::DivAssign<f64> for RQuantity<L, T, A> {
     fn div_assign(&mut self, rhs: f64) {
         *self = Self {
             value: self.value / rhs,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> core::ops::Neg for RQuantity<L, T, A> {
+impl<L: Integer, T: Integer, A: Integer> std::ops::Neg for RQuantity<L, T, A> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
         Self::Output {
             value: -self.value,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
 impl<L: Integer, T: Integer, A: Integer> PartialEq for RQuantity<L, T, A> {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
+        self.value - other.value < f64::EPSILON
     }
 }
 
@@ -249,7 +249,7 @@ impl<L: Integer, T: Integer, A: Integer> Default for RQuantity<L, T, A> {
     fn default() -> Self {
         Self {
             value: 0.,
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -483,7 +483,9 @@ impl QAngle {
     ///
     /// The angle value in degrees as an `f64`.
     #[inline]
-    pub const fn as_degrees(&self) -> f64 {
+    pub fn as_degrees(&self) -> f64 {
+        // Use standard library function for better precision and consistency
+        // Note: Not const because to_degrees() is not const in stable Rust
         self.value.to_degrees()
     }
 
@@ -501,6 +503,41 @@ impl QAngle {
     #[inline]
     pub const fn from_turns(turns: f64) -> Self {
         Self::from_radians(turns * 2.0 * std::f64::consts::PI)
+    }
+
+    #[inline]
+    pub fn asin(v: f64) -> Self {
+        Self::from_radians(libm::asin(v))
+    }
+
+    #[inline]
+    pub fn acos(v: f64) -> Self {
+        Self::from_radians(libm::acos(v))
+    }
+
+    #[inline]
+    pub fn atan(v: f64) -> Self {
+        Self::from_radians(libm::atan(v))
+    }
+
+    #[inline]
+    pub fn asinh(v: f64) -> Self {
+        Self::from_radians(libm::asinh(v))
+    }
+
+    #[inline]
+    pub fn acosh(v: f64) -> Self {
+        Self::from_radians(libm::acosh(v))
+    }
+
+    #[inline]
+    pub fn atanh(v: f64) -> Self {
+        Self::from_radians(libm::atanh(v))
+    }
+
+    #[inline]
+    pub fn atan2(y: f64, x: f64) -> Self {
+        Self::from_radians(libm::atan2(y, x))
     }
 
     /// Converts this angle to turns (revolutions).
@@ -609,7 +646,7 @@ impl QAngle {
     pub fn fmod(&self, other: Self) -> Self {
         Self {
             value: libm::fmod(self.value, other.value),
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -629,7 +666,7 @@ impl QAngle {
     pub fn remainder(&self, other: Self) -> Self {
         Self {
             value: libm::remainder(self.value, other.value),
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -649,14 +686,14 @@ impl QAngle {
     pub fn copysign(&self, other: Self) -> Self {
         Self {
             value: libm::copysign(self.value, other.value),
-            _phantom: core::marker::PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
 /// Conversion from Vexide `Angle` type to `QAngle`.
 ///
-/// This allows seamless integration with VEXide's angle types.
+/// This allows seamless integration with Vexide's angle types.
 impl From<Angle> for QAngle {
     fn from(value: Angle) -> Self {
         Self::from_radians(value.as_radians())
@@ -669,5 +706,11 @@ impl From<Angle> for QAngle {
 impl From<QAngle> for Angle {
     fn from(value: QAngle) -> Self {
         Angle::from_radians(value.as_radians())
+    }
+}
+
+impl From<f64> for QAngle {
+    fn from(value: f64) -> Self {
+        Self::from_radians(value)
     }
 }

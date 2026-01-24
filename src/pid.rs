@@ -149,14 +149,12 @@ impl Pid {
         let dt = now.duration_since(self.last_time).as_secs_f32();
         self.last_time = now;
 
-        // Avoid division by zero on first call or very fast calls
         let dt = if dt > 0.0 { dt } else { 0.001 }; // Default to 1ms if dt is 0
 
         // Proportional term: current error
         let proportional = self.kp * error;
 
         // Integral term: accumulate error over time
-        // This eliminates steady-state error
         self.integral += error * dt;
         let integral = self.ki * self.integral;
 

@@ -2,16 +2,16 @@
 //!
 //! ## Modules
 //!
-//! - [`omniwheel`] - Tracking wheel implementation for odometry
+//! - [`wheel`] - Tracking wheel implementation for odometry
 //! - [`pid`] - PID controller for closed-loop control
 //! - [`pose`] - 2D pose representation and transformations
 //! - [`sensors`] - Encoder trait for sensor abstraction
 //! - [`si`] - Type-safe unit system (length, angle, time)
 //! - [`utils`] - Utility types and helpers
 
-pub mod omniwheel;
+pub mod wheel;
 
-pub use crate::omniwheel::{OmniWheel, TrackingWheel};
+pub use crate::wheel::{OmniWheel, TrackingWheel};
 
 pub mod pid;
 
@@ -28,3 +28,6 @@ pub mod si;
 pub use crate::si::{QAngle, QLength, QTime};
 
 pub mod utils;
+mod solenoidgroup;
+mod differential;
+mod motorgroup;

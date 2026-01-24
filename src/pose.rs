@@ -22,7 +22,7 @@
 //! let combined = pose * other;
 //!
 //! // Calculate distance between poses
-//! let dist = pose.distance(&other);
+//! let dist = pose.distance(other);
 //! ```
 
 use crate::si::{QAngle, QLength};
@@ -57,8 +57,8 @@ pub struct Pose {
     heading: QAngle,
 }
 
-impl core::fmt::Display for Pose {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl std::fmt::Display for Pose {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "[[{:.3}, {:.3}, {:.3}]\n\
@@ -81,13 +81,13 @@ impl Pose {
     /// Creates a new pose with the given position and heading.
     ///
     /// The pose is represented internally as a homogeneous transformation matrix:
-    /// ```
+    /// ```ignore
     /// [[cos(θ), -sin(θ), x],
     ///  [sin(θ),  cos(θ), y],
     ///  [  0,       0,    1]]
     /// ```
     ///
-    /// # Arguments
+    /// # Argument
     ///
     /// * `x` - X coordinate in meters
     /// * `y` - Y coordinate in meters
@@ -119,6 +119,23 @@ impl Pose {
                 1.,
             ),
             heading,
+        }
+    }
+
+    pub fn identity() -> Self {
+        Pose {
+            position: Matrix3::new(
+                QAngle::from_radians(0.).cos(),
+                QAngle::from_radians(0.).sin(),
+                0.0,
+                QAngle::from_radians(0.).sin(),
+                QAngle::from_radians(0.).cos(),
+                0.0,
+                0.,
+                0.,
+                1.,
+            ),
+            heading: Default::default(),
         }
     }
 
@@ -254,10 +271,7 @@ impl Pose {
     /// The heading of `other` is ignored; only the position is transformed.
     /// This is effectively the same as multiplying the transformation matrices.
     pub fn move_local(&self, other: Pose) -> Pose {
-        Pose {
-            position: self.position * other.position,
-            heading: self.heading,
-        }
+        *self * other
     }
 
     /// Moves this pose by adding another pose's position in global coordinates.
@@ -276,20 +290,15 @@ impl Pose {
     /// # Note
     ///
     /// This does not preserve heading and does not apply rotation transformations.
-    /// For proper pose composition, use the `*` operator instead.
     pub fn move_global(&self, other: Pose) -> Pose {
-        Pose::new(
-            self.position.m13 + other.position.m13,
-            self.position.m23 + other.position.m23,
-            Default::default(),
-        )
+        other * *self
     }
 }
 
 /// Adds two poses by summing their positions.
 ///
 /// The heading is preserved from the left-hand operand.
-impl core::ops::Add<Pose> for Pose {
+impl std::ops::Add<Pose> for Pose {
     type Output = Pose;
     fn add(self, other: Pose) -> Pose {
         Pose::new(
@@ -303,7 +312,7 @@ impl core::ops::Add<Pose> for Pose {
 /// Subtracts two poses by subtracting their positions.
 ///
 /// The heading is preserved from the left-hand operand.
-impl core::ops::Sub<Pose> for Pose {
+impl std::ops::Sub<Pose> for Pose {
     type Output = Pose;
     fn sub(self, other: Pose) -> Pose {
         Pose::new(
@@ -319,7 +328,7 @@ impl core::ops::Sub<Pose> for Pose {
 /// This performs a proper homogeneous transformation composition, applying
 /// both position and rotation transformations. The resulting pose has the
 /// combined heading (sum of angles)
-impl core::ops::Mul<Pose> for Pose {
+impl std::ops::Mul<Pose> for Pose {
     type Output = Pose;
     fn mul(self, rhs: Pose) -> Self::Output {
         Pose {
@@ -329,7 +338,7 @@ impl core::ops::Mul<Pose> for Pose {
     }
 }
 
-impl core::ops::Mul<f64> for Pose {
+impl std::ops::Mul<f64> for Pose {
     type Output = Pose;
 
     fn mul(self, rhs: f64) -> Self::Output {
@@ -341,7 +350,7 @@ impl core::ops::Mul<f64> for Pose {
     }
 }
 
-impl core::ops::Div<f64> for Pose {
+impl std::ops::Div<f64> for Pose {
     type Output = Pose;
 
     fn div(self, rhs: f64) -> Self::Output {
@@ -350,5 +359,23 @@ impl core::ops::Div<f64> for Pose {
             self.position.m23 / rhs,
             self.heading,
         )
+    }
+}
+
+impl From<(f64, f64, f64)> for Pose {
+    fn from(value: (f64, f64, f64)) -> Self {
+        Self::new(value.0, value.1, QAngle::from_radians(value.2))
+    }
+}
+
+impl From<(f64, f64)> for Pose {
+    fn from(value: (f64, f64)) -> Self {
+        Self::new(value.0, value.1, Default::default())
+    }
+}
+
+impl Default for Pose {
+    fn default() -> Self {
+        Self::identity()
     }
 }

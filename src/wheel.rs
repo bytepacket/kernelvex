@@ -6,10 +6,14 @@
 //! # Examples
 //!
 //! ```no_run
-//! use kernelvex::omniwheel::{OmniWheel, TrackingWheel, Tracking};
+//! use kernelvex::wheel::{OmniWheel, TrackingWheel};
 //! use kernelvex::si::QLength;
-//! # use kernelvex::sensors::Encoder;
-//! # let encoder: impl Encoder = todo!();
+//! use kernelvex::wheel::Tracking;
+//! use vexide_devices::math::Direction;
+//! use vexide_devices::smart::SmartPort;
+//! use vexide_devices::smart::rotation::RotationSensor;
+//!
+//! let encoder = RotationSensor::new(unsafe {SmartPort::new(1)}, Direction::Forward);
 //!
 //! let mut tracking_wheel = TrackingWheel::new(
 //!     encoder,
@@ -66,30 +70,6 @@ impl OmniWheel {
     }
 }
 
-/// Trait for tracking sensors that measure distance traveled.
-///
-/// Tracking sensors are used in odometry calculations to determine the robot's
-/// position. They provide methods to get the offset from the robot's c
-/// measure distance traveled, and reset the accumulated distance.
-///
-/// # Examples
-///
-/// ```no_run
-/// use kernelvex::omniwheel::{TrackingWheel, Tracking, OmniWheel};
-/// use kernelvex::si::QLength;
-/// # use kernelvex::sensors::Encoder;
-/// # let encoder: impl Encoder = todo!();
-///
-/// let mut tracker: TrackingWheel<_> = TrackingWheel::new(
-///     encoder,
-///     OmniWheel::Omni275,
-///     QLength::from_inches(5.0),
-///     None,
-/// );
-///
-/// let offset = tracker.offset();
-/// let distance = tracker.distance();
-/// ```
 pub trait Tracking {
     /// Returns the offset of the tracking wheel from the robot's center.
     ///
@@ -117,6 +97,8 @@ pub trait Tracking {
     ///
     /// The change in distance since the last call, as a [`QLength`].
     fn delta(&mut self) -> QLength;
+
+    fn orientation(&self) -> Orientation;
 }
 
 /// A tracking wheel implementation using an encoder.
@@ -129,22 +111,6 @@ pub trait Tracking {
 ///
 /// * `T` - The encoder type implementing the [`Encoder`] trait
 ///
-/// # Examples
-///
-/// ```no_run
-/// use kernelvex::omniwheel::{TrackingWheel, OmniWheel};
-/// use kernelvex::si::QLength;
-/// # use kernelvex::sensors::Encoder;
-/// # let encoder: impl Encoder = todo!();
-///
-/// // Create a tracking wheel 5 inches from the robot center
-/// let mut wheel = TrackingWheel::new(
-///     encoder,
-///     OmniWheel::Omni275,
-///     QLength::from_inches(5.0),
-///     Some(1.5), // 1.5:1 gearing ratio
-/// );
-/// ```
 
 pub struct TrackingWheel<T: Encoder> {
     encoder: T,
@@ -170,31 +136,6 @@ impl<T: Encoder> TrackingWheel<T> {
     /// # Returns
     ///
     /// A new `TrackingWheel` instance with the encoder reset to zero.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use kernelvex::omniwheel::{TrackingWheel, OmniWheel};
-    /// use kernelvex::si::QLength;
-    /// # use kernelvex::sensors::Encoder;
-    /// # let encoder: impl Encoder = todo!();
-    ///
-    /// // Right side tracking wheel, 5 inches from center, no gearing
-    /// let wheel = TrackingWheel::new(
-    ///     encoder,
-    ///     OmniWheel::Omni275,
-    ///     QLength::from_inches(5.0),
-    ///     None,
-    /// );
-    ///
-    /// // Left side tracking wheel with 2:1 gearing
-    /// let left_wheel = TrackingWheel::new(
-    ///     encoder,
-    ///     OmniWheel::Omni325,
-    ///     QLength::from_inches(-6.0),
-    ///     Some(2.0),
-    /// );
-    /// ```
     #[allow(unused)]
     pub fn new(encoder: T, wheel: OmniWheel, dist: QLength, gearing: Option<f64>) -> Self {
         if dist.as_meters() > 0. {
@@ -225,32 +166,37 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
     }
 
     fn distance(&mut self) -> QLength {
-        let circumference = self.wheel.size() * core::f64::consts::PI;
+        let circumference = self.wheel.size() * std::f64::consts::PI;
 
         let distance =
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
-                / core::f64::consts::TAU;
+                / std::f64::consts::TAU;
 
-        self.total += distance;
+        self.total = distance;
 
-        distance
+        self.total
     }
 
     fn reset(&mut self) {
         self.total = Default::default();
+        let _ = self.encoder.reset();
     }
 
     fn delta(&mut self) -> QLength {
-        let circumference = self.wheel.size() * core::f64::consts::PI;
+        let circumference = self.wheel.size() * std::f64::consts::PI;
 
         let distance =
             circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
-                / core::f64::consts::TAU;
+                / std::f64::consts::TAU;
 
-        let ret = self.total - distance;
+        let ret = distance - self.total;
 
-        self.total += distance;
+        self.total = distance;
 
         ret
+    }
+
+    fn orientation(&self) -> Orientation {
+        self.orientation
     }
 }
