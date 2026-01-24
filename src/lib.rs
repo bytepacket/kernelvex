@@ -29,5 +29,9 @@ pub use crate::si::{QAngle, QLength, QTime};
 
 pub mod utils;
 mod solenoidgroup;
+
+pub use crate::solenoidgroup::SolenoidGroup;
 mod differential;
 mod motorgroup;
+
+pub use crate::motorgroup::MotorGroup;
