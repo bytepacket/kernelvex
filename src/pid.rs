@@ -47,17 +47,27 @@ use std::time::Instant;
 /// * `last_time` - Timestamp of the last calculation
 pub struct Pid {
     /// Proportional gain constant
-    kp: f32,
+    kp: f64,
     /// Integral gain constant
-    ki: f32,
+    ki: f64,
     /// Derivative gain constant
-    kd: f32,
+    kd: f64,
     /// Accumulated integral term (sum of errors * time)
-    integral: f32,
+    integral: f64,
     /// Previous error value (for calculating derivative)
-    previous_error: f32,
+    previous_error: f64,
+    /// Timestamp of controller since construction
+    time: Instant,
     /// Timestamp of the last calculation
-    last_time: Instant,
+    last_time: f64,
+    /// Minimum output value
+    min: f64,
+    /// Maximum output value
+    max: f64,
+    /// Minimum integral value
+    imin: f64,
+    /// Maximum integral value
+    imax: f64,
 }
 
 impl Pid {
@@ -84,14 +94,19 @@ impl Pid {
     /// let gentle = Pid::new(0.5, 0.01, 0.05);
     /// ```
     #[inline]
-    pub fn new(kp: f32, ki: f32, kd: f32) -> Pid {
+    pub fn new() -> Pid {
         Pid {
-            kp,
-            ki,
-            kd,
+            kp: 0.,
+            ki: 0.,
+            kd: 0.,
             integral: 0.0,
             previous_error: 0.0,
-            last_time: Instant::now(),
+            time: Instant::now(),
+            last_time: 0.,
+            min: f64::NEG_INFINITY,
+            max: f64::INFINITY,
+            imin: f64::NEG_INFINITY,
+            imax: f64::INFINITY,
         }
     }
 
@@ -100,7 +115,7 @@ impl Pid {
     /// # Returns
     ///
     /// A tuple of `(kp, ki, kd)` gain values.
-    pub fn values(&self) -> (f32, f32, f32) {
+    pub fn values(&self) -> (f64, f64, f64) {
         (self.kp, self.ki, self.kd)
     }
 
@@ -133,7 +148,7 @@ impl Pid {
     ///
     /// ```no_run
     /// # use kernelvex::pid::Pid;
-    /// let mut pid = Pid::new(1.0, 0.01, 0.1);
+    /// let mut pid = Pid::new().set_gains(2, 0.6, 0.4);
     ///
     /// // In your control loop:
     /// let setpoint = 100.0;
@@ -143,34 +158,26 @@ impl Pid {
     /// let output = pid.calculate(error);
     /// // Apply `output` to your motor or actuator
     /// ```
-    pub fn calculate(&mut self, error: f32) -> f32 {
-        // Calculate time delta in seconds
-        let now = Instant::now();
-        let dt = now.duration_since(self.last_time).as_secs_f32();
-        self.last_time = now;
+    pub fn calculate(&mut self, error: f64) -> f64 {
+        let t = self.time.elapsed().as_secs_f64();
+        let mut dt =  t - self.last_time;
 
-        let dt = if dt > 0.0 { dt } else { 0.001 }; // Default to 1ms if dt is 0
+        if dt <= 0.0 {
+            dt = 0.001; // 1 ms minimum to avoid spikes
+        }
 
-        // Proportional term: current error
-        let proportional = self.kp * error;
+        let de = error - self.previous_error;
 
-        // Integral term: accumulate error over time
         self.integral += error * dt;
-        let integral = self.ki * self.integral;
 
-        // Derivative term: rate of change of error
-        // This helps reduce overshoot and oscillations
-        let derivative = if dt > 0.0 {
-            self.kd * (error - self.previous_error) / dt
-        } else {
-            0.0
-        };
+        let derivative = if dt > 0. {de / dt} else {0.};
 
-        // Store current error for next calculation
         self.previous_error = error;
 
-        // Calculate and return PID output
-        proportional + integral + derivative
+        self.last_time = t;
+
+        ((self.kp * error) + (self.ki * self.integral.clamp(self.imin, self.imax)) + (derivative * self.kd)).clamp(self.min, self.max)
+
     }
 
     /// Resets the PID controller state.
@@ -189,7 +196,8 @@ impl Pid {
     pub fn reset(&mut self) {
         self.integral = 0.0;
         self.previous_error = 0.0;
-        self.last_time = Instant::now();
+        self.time = Instant::now();
+        self.last_time = 0.0;
     }
 
     /// Sets new PID gain constants.
@@ -204,13 +212,68 @@ impl Pid {
     ///
     /// ```no_run
     /// # use kernelvex::pid::Pid;
-    /// let mut pid = Pid::new(1.0, 0.01, 0.1);
+    /// let mut pid = Pid::new();
     /// // Tune the PID during runtime
     /// pid.set_gains(1.5, 0.02, 0.15);
     /// ```
-    pub fn set_gains(&mut self, kp: f32, ki: f32, kd: f32) {
-        self.kp = kp;
-        self.ki = ki;
-        self.kd = kd;
+    pub fn set_gains(&self, kp: f64, ki: f64, kd: f64) -> Self {
+        Self {
+            kp,
+            ki,
+            kd,
+            integral: self.integral,
+            previous_error: self.previous_error,
+            time: self.time,
+            last_time: self.last_time,
+            min: f64::NEG_INFINITY,
+            max: f64::INFINITY,
+            imin: f64::NEG_INFINITY,
+            imax: f64::INFINITY
+        }
+    }
+
+    /// Set output saturation limits.
+    pub fn with_output_limits(mut self, min: f64, max: f64) -> Self {
+        self.min = min;
+        self.max = max;
+        self
+    }
+
+    /// Set integral term limits (anti-windup).
+    pub fn with_integral_limits(mut self, min: f64, max: f64) -> Self {
+        self.imin = min;
+        self.imax = max;
+        self
     }
 }
+
+/*
+fn main() {
+    let mut pid = Pid::new()
+        .set_gains(2.,0.6,0.4)
+        .with_output_limits(-100.0, 100.0)
+        .with_integral_limits(-50.0, 50.0);
+
+    let setpoint = 100.0;
+    let mut measurement = 90.0;
+
+    let period = std::time::Duration::from_millis(10);
+
+    loop {
+        let tick = Instant::now();
+        let error = setpoint - measurement;
+        let control = pid.calculate(error);
+
+        // Apply control to your system; here we simulate plant response
+        measurement += control * 0.01;
+
+        println!("err={error:.2}, out={control:.2}, meas={measurement:.2}");
+
+        // keep loop period steady
+        let elapsed = tick.elapsed();
+        if elapsed < period {
+            std::thread::sleep(period - elapsed);
+        }
+    }
+}
+*/

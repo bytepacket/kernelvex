@@ -12,5 +12,3 @@ libm = "0.2.15"
 nalgebra = { version = "0.34.1", default-features = false, features = ["libm"] }
 vexide-devices = "0.8.0"
 typenum = { version = "1.19.0", default-features = false }
-vex-sdk = "0.28.0"
-vexide = { version = "0.8.0", features = ["full", "default-sdk"] }

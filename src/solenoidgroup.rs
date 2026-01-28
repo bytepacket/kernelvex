@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
+use crate::utils::GroupErrors;
 use std::cell::RefCell;
 use std::rc::Rc;
 use vexide_devices::adi::digital::*;
-use crate::utils::GroupErrors;
 
 pub struct SolenoidGroup {
     pneumatics: Rc<RefCell<Vec<AdiDigitalOut>>>,
@@ -21,61 +21,57 @@ impl SolenoidGroup {
     }
 
     pub fn set_level(&self, logic: LogicLevel) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self.pneumatics
+        let ret: GroupErrors = self
+            .pneumatics
             .borrow_mut()
             .iter_mut()
-            .enumerate()
-            .filter_map(|(_, sol)| sol.set_level(logic).err())
+            .filter_map(|sol| sol.set_level(logic).err())
             .collect();
         if ret.is_empty() {
             Ok(())
-        }
-        else {
+        } else {
             Err(ret)
         }
     }
 
     pub fn extend(&self) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self.pneumatics
+        let ret: GroupErrors = self
+            .pneumatics
             .borrow_mut()
             .iter_mut()
-            .enumerate()
-            .filter_map(|(_, sol)| sol.set_level(LogicLevel::High).err())
+            .filter_map(|sol| sol.set_level(LogicLevel::High).err())
             .collect();
         if ret.is_empty() {
             Ok(())
-        }
-        else {
+        } else {
             Err(ret)
         }
     }
 
     pub fn retract(&self) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self.pneumatics
+        let ret: GroupErrors = self
+            .pneumatics
             .borrow_mut()
             .iter_mut()
-            .enumerate()
-            .filter_map(|(_, sol)| sol.set_level(LogicLevel::Low).err())
+            .filter_map(|sol| sol.set_level(LogicLevel::Low).err())
             .collect();
         if ret.is_empty() {
             Ok(())
-        }
-        else {
+        } else {
             Err(ret)
         }
     }
 
     pub fn toggle(&self) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self.pneumatics
+        let ret: GroupErrors = self
+            .pneumatics
             .borrow_mut()
             .iter_mut()
-            .enumerate()
-            .filter_map(|(_, sol)| sol.toggle().err())
+            .filter_map(|sol| sol.toggle().err())
             .collect();
         if ret.is_empty() {
             Ok(())
-        }
-        else {
+        } else {
             Err(ret)
         }
     }

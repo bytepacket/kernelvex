@@ -17,30 +17,14 @@ pub enum Orientation {
 }
 
 #[macro_export]
-macro_rules! verify {
-    ($cond:expr) => {{
-        if $cond {
-            Ok(true)
-        } else {
-            Err(false)
-        }
+macro_rules! shared_motor {
+    ($($motor:expr),+ $(,)?) => {{
+        const N: usize = <[()]>::len(&[$(shared_motor!(@replace $motor)),*]);
+        
+        let motors: [Motor; N] = [$($motor),+];
+        Rc::new(RefCell::new(motors))
     }};
-
-    ($cond:expr, $err:expr) => {{
-        if $cond {
-            Ok(true)
-        } else {
-            Err($err)
-        }
-    }};
-
-    ($cond:expr, $suc:expr, $err:expr) => {{
-        if $cond {
-            Ok($suc)
-        } else {
-            Err($err)
-        }
-    }};
+    (@replace $_:expr) => (());
 }
 
 pub type GroupErrors = Vec<PortError>;

@@ -34,21 +34,23 @@ use crate::utils::Orientation;
 ///
 /// Omni wheels come in different sizes (diameter). The size affects the
 /// distance calculation when converting encoder rotations to linear distance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(unused)]
 pub enum OmniWheel {
-    /// 2.75 inch omni wheel
+    /// 2.75-inch omni wheel
     Omni275,
-    /// 3.25 inch omni wheel
+    /// 3.25-inch omni wheel
     Omni325,
-    /// 4.125 inch omni wheel
+    /// 4.125-inch omni wheel
     Omni4,
-    /// 2.75 inch anti-static wheel
+    /// 2.75-inch anti-static wheel
     Anti275,
-    /// 3.25 inch anti-static wheel
+    /// 3.25-inch anti-static wheel
     Anti325,
-    /// 4 inch anti-static wheel
+    /// 4-inch anti-static wheel
     Anti4,
+    /// Custom Length wheel
+    Custom(QLength),
 }
 
 impl OmniWheel {
@@ -66,6 +68,7 @@ impl OmniWheel {
             OmniWheel::Anti275 => QLength::from_inches(2.75),
             OmniWheel::Anti325 => QLength::from_inches(3.25),
             OmniWheel::Anti4 => QLength::from_inches(4.),
+            OmniWheel::Custom(d) => d,
         }
     }
 }
@@ -118,7 +121,7 @@ pub struct TrackingWheel<T: Encoder> {
     dist: QLength,
     orientation: Orientation,
     total: QLength,
-    gearing: Option<f64>,
+    gearing: f64,
 }
 
 impl<T: Encoder> TrackingWheel<T> {
@@ -137,7 +140,8 @@ impl<T: Encoder> TrackingWheel<T> {
     ///
     /// A new `TrackingWheel` instance with the encoder reset to zero.
     #[allow(unused)]
-    pub fn new(encoder: T, wheel: OmniWheel, dist: QLength, gearing: Option<f64>) -> Self {
+    pub fn new(encoder: T, wheel: OmniWheel, dist: QLength, ratio: Option<f64>) -> Self {
+        let gearing: f64 = ratio.unwrap_or(1.);
         if dist.as_meters() > 0. {
             TrackingWheel {
                 encoder,
@@ -168,9 +172,8 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
     fn distance(&mut self) -> QLength {
         let circumference = self.wheel.size() * std::f64::consts::PI;
 
-        let distance =
-            circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
-                / std::f64::consts::TAU;
+        let distance = circumference * self.gearing * (self.encoder.rotations().as_radians())
+            / std::f64::consts::TAU;
 
         self.total = distance;
 
@@ -185,9 +188,8 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
     fn delta(&mut self) -> QLength {
         let circumference = self.wheel.size() * std::f64::consts::PI;
 
-        let distance =
-            circumference * self.gearing.unwrap_or(1.) * (self.encoder.rotations().as_radians())
-                / std::f64::consts::TAU;
+        let distance = circumference * self.gearing * (self.encoder.rotations().as_radians())
+            / std::f64::consts::TAU;
 
         let ret = distance - self.total;
 

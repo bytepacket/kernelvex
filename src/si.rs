@@ -241,7 +241,7 @@ impl<L: Integer, T: Integer, A: Integer> std::ops::Neg for RQuantity<L, T, A> {
 
 impl<L: Integer, T: Integer, A: Integer> PartialEq for RQuantity<L, T, A> {
     fn eq(&self, other: &Self) -> bool {
-        self.value - other.value < f64::EPSILON
+        (self.value - other.value).abs() < f64::EPSILON
     }
 }
 
