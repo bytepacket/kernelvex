@@ -33,7 +33,8 @@ pub mod solenoidgroup;
 pub use crate::solenoidgroup::SolenoidGroup;
 pub mod differential;
 pub mod motorgroup;
-mod model;
+pub mod model;
+pub use crate::model::*;
 mod odom;
 
 pub use crate::motorgroup::MotorGroup;
