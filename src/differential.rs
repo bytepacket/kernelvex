@@ -10,7 +10,7 @@ pub struct DifferentialDrive<const N: usize> {
 
 impl<const N: usize> DifferentialDrive<N> {
     #[inline]
-    fn new(left: MotorGroup<N>, right: MotorGroup<N>) -> Self {
+    pub fn new(left: MotorGroup<N>, right: MotorGroup<N>) -> Self {
         Self { left, right }
     }
 }

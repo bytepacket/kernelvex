@@ -9,6 +9,7 @@ use vexide_devices::{
 };
 use crate::utils::GroupErrors;
 
+#[derive(Clone)]
 pub struct MotorGroup<const N: usize> {
     motors: Rc<RefCell<[Motor; N]>>,
 }
