@@ -61,8 +61,8 @@ impl<const N: usize> Tank for DifferentialDrive<N> {
 
 impl<const N: usize> CurvatureDrive for DifferentialDrive<N> {
     fn drive_curvature(&mut self, throttle: f64, curvature: f64) -> Result<(), GroupErrors> {
-        let left = throttle + (curvature * throttle.abs());
-        let right = throttle - (curvature * throttle.abs());
+        let left = (throttle + (curvature * throttle.abs())).clamp(-12.0, 12.0);
+        let right = (throttle - (curvature * throttle.abs())).clamp(-12.0, 12.0);
 
         self.left.set_voltage(left)?;
         self.right.set_voltage(right)?;
