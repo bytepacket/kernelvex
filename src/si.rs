@@ -32,8 +32,6 @@
 //! // let invalid = dist1 + QAngle::from_degrees(45.0); // Compile error!
 //! ```
 
-// TODO: implement time
-
 use typenum::{Diff, Integer, Negate, Sum, P1, Z0};
 use vexide_devices::math::Angle;
 
@@ -385,11 +383,14 @@ impl QLength {
 }
 
 impl QTime {
-    const SECOND: QTime = Self::from_sec(1.);
+    /// One second.
+    pub const SECOND: QTime = Self::from_sec(1.);
 
-    const MILLISECOND: QTime = Self::from_msec(1.);
+    /// One millisecond.
+    pub const MILLISECOND: QTime = Self::from_msec(1.);
 
-    const MINUTE: QTime = Self::from_minute(1.);
+    /// One minute.
+    pub const MINUTE: QTime = Self::from_minute(1.);
 
     #[allow(dead_code)]
     #[inline]

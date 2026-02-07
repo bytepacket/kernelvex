@@ -122,21 +122,9 @@ impl Pose {
         }
     }
 
+    /// Creates an identity pose at the origin with zero heading.
     pub fn identity() -> Self {
-        Pose {
-            position: Matrix3::new(
-                QAngle::from_radians(0.).cos(),
-                QAngle::from_radians(0.).sin(),
-                0.0,
-                QAngle::from_radians(0.).sin(),
-                QAngle::from_radians(0.).cos(),
-                0.0,
-                0.,
-                0.,
-                1.,
-            ),
-            heading: Default::default(),
-        }
+        Pose::new(0.0, 0.0, QAngle::default())
     }
 
     /// Returns the heading (orientation) of this pose.

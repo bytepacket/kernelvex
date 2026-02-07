@@ -1,7 +1,7 @@
 use kernelvex::pose::Pose;
 use kernelvex::si::QAngle;
 use std::f64::consts::PI;
-// TODO: fix heading not being added in tests
+
 // ============================================================================
 // Basic Construction Tests
 // ============================================================================
@@ -12,7 +12,7 @@ fn test_pose_new() {
     let (x, y) = pose.position();
     assert_eq!(x, 1.5);
     assert_eq!(y, 2.0);
-    assert!((pose.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((pose.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn test_pose_position() {
 #[test]
 fn test_pose_heading() {
     let pose = Pose::new(0.0, 0.0, QAngle::from_degrees(45.0));
-    assert!((pose.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((pose.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -110,7 +110,7 @@ fn test_pose_angle_vertical() {
     let p1 = Pose::new(0.0, 0.0, QAngle::from_degrees(0.0));
     let p2 = Pose::new(0.0, 1.0, QAngle::from_degrees(0.0));
     let angle = p1.angle(p2);
-    assert!((angle.as_radians() - PI / 2.0).abs() < 1e10);
+    assert!((angle.as_radians() - PI / 2.0).abs() < 1e-10);
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn test_pose_angle_diagonal() {
     let p2 = Pose::new(1.0, 1.0, QAngle::from_degrees(0.0));
     let angle = p1.angle(p2);
     // Angle should be 45 degrees = π/4 radians
-    assert!((angle.as_degrees() - 45.0).abs() < 1e10);
+    assert!((angle.as_degrees() - 45.0).abs() < 1e-10);
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn test_pose_rotate() {
     assert_eq!(x, 1.0);
     assert_eq!(y, 2.0);
     // Heading should be rotated
-    assert!((rotated.heading().as_degrees() - 90.0).abs() < 1e10);
+    assert!((rotated.heading().as_degrees() - 90.0).abs() < 1e-10);
 }
 
 #[test]
@@ -152,14 +152,14 @@ fn test_pose_rotate_multiple() {
     let pose = Pose::new(0.0, 0.0, QAngle::from_degrees(30.0));
     let rotated = pose.rotate(QAngle::from_degrees(60.0));
     // Heading should be 30 + 60 = 90 degrees
-    assert!((rotated.heading().as_degrees() - 90.0).abs() < 1e10);
+    assert!((rotated.heading().as_degrees() - 90.0).abs() < 1e-10);
 }
 
 #[test]
 fn test_pose_rotate_negative() {
     let pose = Pose::new(1.0, 1.0, QAngle::from_degrees(90.0));
     let rotated = pose.rotate(QAngle::from_degrees(-45.0));
-    assert!((rotated.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((rotated.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -176,7 +176,7 @@ fn test_pose_add() {
     assert_eq!(x, 4.0);
     assert_eq!(y, 6.0);
     // Heading should be preserved from left operand
-    assert!((sum.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((sum.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 #[test]
@@ -203,7 +203,7 @@ fn test_pose_sub() {
     assert_eq!(x, 3.0);
     assert_eq!(y, 4.0);
     // Heading should be preserved from left operand
-    assert!((diff.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((diff.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn test_pose_sub_identity() {
     let (x, y) = diff.position();
     assert_eq!(x, 3.0);
     assert_eq!(y, 4.0);
-    assert!((diff.heading().as_degrees() - 60.0).abs() < 1e10);
+    assert!((diff.heading().as_degrees() - 60.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -228,10 +228,10 @@ fn test_pose_mul_identity() {
     let result = p1 * identity;
     let (x, y) = result.position();
     // Multiplying by identity should leave position unchanged
-    assert!((x - 1.0).abs() < 1e10);
-    assert!((y - 2.0).abs() < 1e10);
+    assert!((x - 1.0).abs() < 1e-10);
+    assert!((y - 2.0).abs() < 1e-10);
     // Heading should be unchanged (45 + 0 = 45)
-    assert!((result.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((result.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 #[test]
@@ -243,8 +243,8 @@ fn test_pose_mul_translation_only() {
     let result = p1 * p2;
     let (x, y) = result.position();
     // Result should be (1, 2)
-    assert!((x - 1.0).abs() < 1e10);
-    assert!((y - 2.0).abs() < 1e10);
+    assert!((x - 1.0).abs() < 1e-10);
+    assert!((y - 2.0).abs() < 1e-10);
 }
 
 #[test]
@@ -256,10 +256,10 @@ fn test_pose_mul_rotation_only() {
     let result = p1 * p2;
     let (x, y) = result.position();
     // Rotating (1, 0) by 90° should give (0, 1)
-    assert!((x - 0.0).abs() < 1e10);
-    assert!((y - 1.0).abs() < 1e10);
+    assert!((x - 0.0).abs() < 1e-10);
+    assert!((y - 1.0).abs() < 1e-10);
     // Combined heading should be 90° + 0° = 90°
-    assert!((result.heading().as_degrees() - 90.0).abs() < 1e10);
+    assert!((result.heading().as_degrees() - 90.0).abs() < 1e-10);
 }
 
 #[test]
@@ -270,7 +270,7 @@ fn test_pose_mul_combined() {
     let p2 = Pose::new(0.0, 1.0, QAngle::from_degrees(90.0));
     let result = p1 * p2;
     // Combined heading should be 90° + 90° = 180°
-    assert!((result.heading().as_degrees() - 180.0).abs() < 1e10);
+    assert!((result.heading().as_degrees() - 180.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -286,7 +286,7 @@ fn test_pose_mul_scalar() {
     assert_eq!(x, 4.0);
     assert_eq!(y, 6.0);
     // Heading should be preserved
-    assert!((scaled.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((scaled.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn test_pose_mul_scalar_zero() {
     let (x, y) = scaled.position();
     assert_eq!(x, 0.0);
     assert_eq!(y, 0.0);
-    assert!((scaled.heading().as_degrees() - 30.0).abs() < 1e10);
+    assert!((scaled.heading().as_degrees() - 30.0).abs() < 1e-10);
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn test_pose_mul_scalar_negative() {
     let (x, y) = scaled.position();
     assert_eq!(x, -1.0);
     assert_eq!(y, -2.0);
-    assert!((scaled.heading().as_degrees() - 45.0).abs() < 1e10);
+    assert!((scaled.heading().as_degrees() - 45.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -345,8 +345,8 @@ fn test_pose_move_local() {
     let global = robot.move_local(local);
     let (x, y) = global.position();
     // Should still be (1, 0) since robot is at origin facing east
-    assert!((x - 1.0).abs() < 1e10);
-    assert!((y - 0.0).abs() < 1e10);
+    assert!((x - 1.0).abs() < 1e-10);
+    assert!((y - 0.0).abs() < 1e-10);
 }
 
 #[test]
@@ -358,8 +358,8 @@ fn test_pose_move_local_rotated() {
     let global = robot.move_local(local);
     let (x, y) = global.position();
     // When facing north, (1, 0) in local frame is (0, 1) in global frame
-    assert!((x - 0.0).abs() < 1e10);
-    assert!((y - 1.0).abs() < 1e10);
+    assert!((x - 0.0).abs() < 1e-10);
+    assert!((y - 1.0).abs() < 1e-10);
 }
 
 #[test]
@@ -371,8 +371,8 @@ fn test_pose_move_local_translated() {
     let global = robot.move_local(local);
     let (x, y) = global.position();
     // Should be (2+1, 3+0) = (3, 3)
-    assert!((x - 3.0).abs() < 1e10);
-    assert!((y - 3.0).abs() < 1e10);
+    assert!((x - 3.0).abs() < 1e-10);
+    assert!((y - 3.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -417,8 +417,8 @@ fn test_pose_transformation_matrix_zero_rotation() {
     assert_eq!(x, 1.0);
     assert_eq!(y, 2.0);
     // Cos(0) = 1, Sin(0) = 0
-    assert!((pose.heading().cos() - 1.0).abs() < 1e10);
-    assert!((pose.heading().sin() - 0.0).abs() < 1e10);
+    assert!((pose.heading().cos() - 1.0).abs() < 1e-10);
+    assert!((pose.heading().sin() - 0.0).abs() < 1e-10);
 }
 
 #[test]
@@ -426,8 +426,8 @@ fn test_pose_transformation_matrix_ninety_rotation() {
     // Pose at (0, 0) with 90° rotation
     let pose = Pose::new(0.0, 0.0, QAngle::from_degrees(90.0));
     // Cos(90°) = 0, Sin(90°) = 1
-    assert!((pose.heading().cos() - 0.0).abs() < 1e10);
-    assert!((pose.heading().sin() - 1.0).abs() < 1e10);
+    assert!((pose.heading().cos() - 0.0).abs() < 1e-10);
+    assert!((pose.heading().sin() - 1.0).abs() < 1e-10);
 }
 
 // ============================================================================
@@ -454,7 +454,7 @@ fn test_pose_chained_transformations() {
     // After second forward in new frame: should be (1, 1) in global
     // The exact position depends on matrix multiplication order
     // Combined heading: 0 + 0 + 90 + 0 = 90°
-    assert!((result.heading().as_degrees() - 90.0).abs() < 1e10);
+    assert!((result.heading().as_degrees() - 90.0).abs() < 1e-10);
 }
 
 #[test]
@@ -473,7 +473,7 @@ fn test_pose_roundtrip() {
     let (x2, y2) = recreated.position();
     assert_eq!(x, x2);
     assert_eq!(y, y2);
-    assert!((heading.as_degrees() - recreated.heading().as_degrees()).abs() < 1e10);
+    assert!((heading.as_degrees() - recreated.heading().as_degrees()).abs() < 1e-10);
 }
 
 #[test]
@@ -485,5 +485,5 @@ fn test_pose_clone() {
     let (x2, y2) = p2.position();
     assert_eq!(x1, x2);
     assert_eq!(y1, y2);
-    assert!((p1.heading().as_degrees() - p2.heading().as_degrees()).abs() < 1e10);
+    assert!((p1.heading().as_degrees() - p2.heading().as_degrees()).abs() < 1e-10);
 }

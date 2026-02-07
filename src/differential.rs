@@ -2,9 +2,17 @@ use crate::model::{Arcade, Tank, CurvatureDrive, Drivetrain};
 use crate::MotorGroup;
 use crate::utils::GroupErrors;
 
+/// A differential (tank-style) drivetrain with left and right motor groups.
+///
+/// `DifferentialDrive` controls a robot with independent left and right sides,
+/// supporting tank, arcade, and curvature drive modes.
+///
+/// # Type Parameters
+///
+/// * `N` - The number of motors per side
 pub struct DifferentialDrive<const N: usize> {
     left: MotorGroup<N>,
-    right: MotorGroup<N>
+    right: MotorGroup<N>,
 }
 
 
@@ -52,8 +60,14 @@ impl<const N: usize> Tank for DifferentialDrive<N> {
 }
 
 impl<const N: usize> CurvatureDrive for DifferentialDrive<N> {
-    fn drive_curvature(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
-        todo!()
+    fn drive_curvature(&mut self, throttle: f64, curvature: f64) -> Result<(), GroupErrors> {
+        let left = throttle + (curvature * throttle.abs());
+        let right = throttle - (curvature * throttle.abs());
+
+        self.left.set_voltage(left)?;
+        self.right.set_voltage(right)?;
+
+        Ok(())
     }
 }
 

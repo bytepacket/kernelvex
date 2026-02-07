@@ -60,7 +60,7 @@ impl OmniWheel {
     ///
     /// The wheel diameter as a [`QLength`].
     #[allow(unused)]
-    fn size(&self) -> QLength {
+    pub fn size(&self) -> QLength {
         match *self {
             OmniWheel::Omni275 => QLength::from_inches(2.75),
             OmniWheel::Omni325 => QLength::from_inches(3.25),

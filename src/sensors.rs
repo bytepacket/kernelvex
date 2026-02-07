@@ -56,7 +56,7 @@ impl Encoder for AdiEncoder<360> {
 
 impl Encoder for RotationSensor {
     fn rotations(&self) -> QAngle {
-        QAngle::from_radians(self.position().unwrap().as_turns())
+        QAngle::from_turns(self.position().unwrap().as_turns())
     }
 
     fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>> {

@@ -15,7 +15,7 @@
 //! ```no_run
 //! # use kernelvex::pid::Pid;
 //! // Create a PID controller with tuned constants
-//! let mut pid = Pid::new(1.0, 0.01, 0.1);
+//! let mut pid = Pid::new().set_gains(1.0, 0.01, 0.1);
 //!
 //! // In your control loop:
 //! let setpoint = 100.0;
@@ -87,11 +87,10 @@ impl Pid {
     ///
     /// ```no_run
     /// # use kernelvex::pid::Pid;
-    /// // Aggressive PID for fast response
-    /// let aggressive = Pid::new(2.0, 0.05, 0.2);
+    /// // Create a PID controller and set gains
+    /// let aggressive = Pid::new().set_gains(2.0, 0.05, 0.2);
     ///
-    /// // Gentle PID for smooth control
-    /// let gentle = Pid::new(0.5, 0.01, 0.05);
+    /// let gentle = Pid::new().set_gains(0.5, 0.01, 0.05);
     /// ```
     #[inline]
     pub fn new() -> Pid {
@@ -148,7 +147,7 @@ impl Pid {
     ///
     /// ```no_run
     /// # use kernelvex::pid::Pid;
-    /// let mut pid = Pid::new().set_gains(2, 0.6, 0.4);
+    /// let mut pid = Pid::new().set_gains(2.0, 0.6, 0.4);
     ///
     /// // In your control loop:
     /// let setpoint = 100.0;
@@ -189,7 +188,7 @@ impl Pid {
     ///
     /// ```no_run
     /// # use kernelvex::pid::Pid;
-    /// let mut pid = Pid::new(1.0, 0.01, 0.1);
+    /// let mut pid = Pid::new().set_gains(1.0, 0.01, 0.1);
     /// // ... use pid for a while ...
     /// pid.reset(); // Start fresh
     /// ```
@@ -212,9 +211,9 @@ impl Pid {
     ///
     /// ```no_run
     /// # use kernelvex::pid::Pid;
-    /// let mut pid = Pid::new();
+    /// let pid = Pid::new();
     /// // Tune the PID during runtime
-    /// pid.set_gains(1.5, 0.02, 0.15);
+    /// let pid = pid.set_gains(1.5, 0.02, 0.15);
     /// ```
     pub fn set_gains(&self, kp: f64, ki: f64, kd: f64) -> Self {
         Self {
@@ -225,10 +224,10 @@ impl Pid {
             previous_error: self.previous_error,
             time: self.time,
             last_time: self.last_time,
-            min: f64::NEG_INFINITY,
-            max: f64::INFINITY,
-            imin: f64::NEG_INFINITY,
-            imax: f64::INFINITY
+            min: self.min,
+            max: self.max,
+            imin: self.imin,
+            imax: self.imax,
         }
     }
 
@@ -246,34 +245,3 @@ impl Pid {
         self
     }
 }
-
-/*
-fn main() {
-    let mut pid = Pid::new()
-        .set_gains(2.,0.6,0.4)
-        .with_output_limits(-100.0, 100.0)
-        .with_integral_limits(-50.0, 50.0);
-
-    let setpoint = 100.0;
-    let mut measurement = 90.0;
-
-    let period = std::time::Duration::from_millis(10);
-
-    loop {
-        let tick = Instant::now();
-        let error = setpoint - measurement;
-        let control = pid.calculate(error);
-
-        // Apply control to your system; here we simulate plant response
-        measurement += control * 0.01;
-
-        println!("err={error:.2}, out={control:.2}, meas={measurement:.2}");
-
-        // keep loop period steady
-        let elapsed = tick.elapsed();
-        if elapsed < period {
-            std::thread::sleep(period - elapsed);
-        }
-    }
-}
-*/
