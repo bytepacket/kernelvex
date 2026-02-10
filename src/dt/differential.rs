@@ -1,12 +1,19 @@
-use crate::model::{Arcade, Tank, CurvatureDrive, Drivetrain};
+use crate::dt::model::{Arcade, CurvatureDrive, Drivetrain, Tank};
+use crate::util::utils::GroupErrors;
 use crate::MotorGroup;
-use crate::utils::GroupErrors;
 
+/// A differential (tank-style) drivetrain with left and right motor groups.
+///
+/// `DifferentialDrive` controls odom robot with independent left and right sides,
+/// supporting tank, arcade, and curvature drive modes.
+///
+/// # Type Parameters
+///
+/// * `N` - The number of motors per side
 pub struct DifferentialDrive<const N: usize> {
     left: MotorGroup<N>,
-    right: MotorGroup<N>
+    right: MotorGroup<N>,
 }
-
 
 impl<const N: usize> DifferentialDrive<N> {
     #[inline]
@@ -29,18 +36,16 @@ impl<const N: usize> Arcade for DifferentialDrive<N> {
                 self.left.set_voltage(total)?;
                 self.right.set_voltage(maximum)?;
             }
+        } else if right >= 0. {
+            self.left.set_voltage(total)?;
+            self.right.set_voltage(-maximum)?;
+        } else {
+            self.left.set_voltage(-maximum)?;
+            self.right.set_voltage(difference)?;
         }
-        else if right >= 0. {
-                  self.left.set_voltage(total)?;
-                  self.right.set_voltage(-maximum)?;
-              }
-              else {
-                  self.left.set_voltage(-maximum)?;
-                  self.right.set_voltage(difference)?;
-              }
         Ok(())
-        }
     }
+}
 
 impl<const N: usize> Tank for DifferentialDrive<N> {
     fn drive_tank(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {

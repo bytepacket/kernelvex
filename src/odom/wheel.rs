@@ -6,19 +6,20 @@
 //! # Examples
 //!
 //! ```no_run
-//! use kernelvex::wheel::{OmniWheel, TrackingWheel};
-//! use kernelvex::si::QLength;
-//! use kernelvex::wheel::Tracking;
+//! use kernelvex::odom::wheel::{OmniWheel, TrackingWheel};
+//! use kernelvex::util::si::QLength;
+//! use kernelvex::odom::wheel::Tracking;
 //! use vexide_devices::math::Direction;
 //! use vexide_devices::smart::SmartPort;
 //! use vexide_devices::smart::rotation::RotationSensor;
+//! use kernelvex::util::utils::TrackingWheelOrientation;
 //!
 //! let encoder = RotationSensor::new(unsafe {SmartPort::new(1)}, Direction::Forward);
 //!
 //! let mut tracking_wheel = TrackingWheel::new(
 //!     encoder,
 //!     OmniWheel::Omni275,
-//!     QLength::from_inches(5.0),
+//!     TrackingWheelOrientation::Vertical(QLength::from_inches(5.)),
 //!     Some(1.0), // gearing ratio
 //! );
 //!
@@ -26,9 +27,10 @@
 //! println!("Distance traveled: {} inches", distance.as_inches());
 //! ```
 
-use crate::sensors::Encoder;
-use crate::si::QLength;
-use crate::utils::Orientation;
+use crate::odom::sensors::Encoder;
+use crate::util::si::QLength;
+use crate::util::utils::Orientation;
+use crate::util::utils::TrackingWheelOrientation;
 
 /// Types of omni wheels available for tracking.
 ///
@@ -58,7 +60,7 @@ impl OmniWheel {
     ///
     /// # Returns
     ///
-    /// The wheel diameter as a [`QLength`].
+    /// The wheel diameter as odom [`QLength`].
     #[allow(unused)]
     fn size(&self) -> QLength {
         match *self {
@@ -98,10 +100,12 @@ pub trait Tracking {
     ///
     /// # Returns
     ///
-    /// The change in distance since the last call, as a [`QLength`].
+    /// The change in distance since the last call, as odom [`QLength`].
     fn delta(&mut self) -> QLength;
 
     fn orientation(&self) -> Orientation;
+
+    fn direction(&self) -> TrackingWheelOrientation;
 }
 
 /// A tracking wheel implementation using an encoder.
@@ -118,14 +122,14 @@ pub trait Tracking {
 pub struct TrackingWheel<T: Encoder> {
     encoder: T,
     wheel: OmniWheel,
-    dist: QLength,
+    dist: TrackingWheelOrientation,
     orientation: Orientation,
     total: QLength,
     gearing: f64,
 }
 
 impl<T: Encoder> TrackingWheel<T> {
-    /// Creates a new tracking wheel.
+    /// Creates odom new tracking wheel.
     ///
     /// # Arguments
     ///
@@ -140,9 +144,20 @@ impl<T: Encoder> TrackingWheel<T> {
     ///
     /// A new `TrackingWheel` instance with the encoder reset to zero.
     #[allow(unused)]
-    pub fn new(encoder: T, wheel: OmniWheel, dist: QLength, ratio: Option<f64>) -> Self {
+    pub fn new(
+        encoder: T,
+        wheel: OmniWheel,
+        dist: TrackingWheelOrientation,
+        ratio: Option<f64>,
+    ) -> Self {
         let gearing: f64 = ratio.unwrap_or(1.);
-        if dist.as_meters() > 0. {
+
+        let _v = match dist {
+            TrackingWheelOrientation::Vertical(v) => v,
+            TrackingWheelOrientation::Horizontal(v) => v,
+        };
+
+        if _v.as_meters() > 0. {
             TrackingWheel {
                 encoder,
                 wheel,
@@ -166,7 +181,10 @@ impl<T: Encoder> TrackingWheel<T> {
 
 impl<T: Encoder> Tracking for TrackingWheel<T> {
     fn offset(&self) -> QLength {
-        self.dist
+        match self.dist {
+            TrackingWheelOrientation::Vertical(v) => v,
+            TrackingWheelOrientation::Horizontal(v) => v,
+        }
     }
 
     fn distance(&mut self) -> QLength {
@@ -200,5 +218,9 @@ impl<T: Encoder> Tracking for TrackingWheel<T> {
 
     fn orientation(&self) -> Orientation {
         self.orientation
+    }
+
+    fn direction(&self) -> TrackingWheelOrientation {
+        self.dist
     }
 }

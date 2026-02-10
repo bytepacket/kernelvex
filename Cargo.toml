@@ -12,3 +12,5 @@ libm = "0.2.15"
 nalgebra = { version = "0.34.1", default-features = false, features = ["libm"] }
 vexide-devices = "0.8.0"
 typenum = { version = "1.19.0", default-features = false }
+humantime = "2.3.0"
+thread-id = "5.1.0"

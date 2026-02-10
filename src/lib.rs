@@ -9,33 +9,30 @@
 //! - [`si`] - Type-safe unit system (length, angle, time)
 //! - [`utils`] - Utility types and helpers
 
-pub mod wheel;
+pub use odom::wheel::{OmniWheel, TrackingWheel};
 
-pub use crate::wheel::{OmniWheel, TrackingWheel};
+pub use control::ramsete::{RamseteController, RamseteReference};
+pub use motion::trajectory::{Trajectory, TrajectoryPoint};
+pub use odom::pose::Pose;
 
-pub mod pid;
+pub use util::si::{QAngle, QLength, QTime};
 
-pub use crate::pid::Pid;
+pub use dt::model::*;
+pub use util::solenoidgroup::SolenoidGroup;
 
-pub mod pose;
+pub use dt::differential::DifferentialDrive;
+pub use dt::motorgroup::MotorGroup;
+use odom::{pose, sensors, wheel};
 
-pub use crate::pose::Pose;
+pub mod control;
+pub mod dt;
 
-pub mod sensors;
+pub use util::logger::Logger;
+use util::{si, utils};
 
-pub mod si;
+pub mod odom;
 
-pub use crate::si::{QAngle, QLength, QTime};
+pub mod motion;
 
-pub mod utils;
-pub mod solenoidgroup;
-
-pub use crate::solenoidgroup::SolenoidGroup;
-pub mod differential;
-pub mod motorgroup;
-pub mod model;
-pub use crate::model::*;
-mod odom;
-
-pub use crate::motorgroup::MotorGroup;
-pub use crate::differential::DifferentialDrive;
+pub use control::pid::{AngularPid, Pid};
+pub mod util;

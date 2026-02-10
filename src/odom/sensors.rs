@@ -1,9 +1,9 @@
 //! Sensor abstraction layer for encoders and rotation sensors.
 //!
-//! Provides a unified [`Encoder`] trait that allows different sensor types
+//! Provides odom unified [`Encoder`] trait that allows different sensor types
 //! to be used interchangeably for odometry calculations.
 
-use crate::si::QAngle;
+use crate::util::si::QAngle;
 
 use vexide_devices::adi::encoder::AdiEncoder;
 use vexide_devices::smart::rotation::RotationSensor;
@@ -16,8 +16,8 @@ use vexide_devices::smart::rotation::RotationSensor;
 /// # Examples
 ///
 /// ```no_run
-/// use kernelvex::sensors::Encoder;
-/// # use kernelvex::si::QAngle;
+/// use kernelvex::odom::sensors::Encoder;
+/// # use kernelvex::util::si::QAngle;
 /// # let encoder: vexide_devices::smart::rotation::RotationSensor = todo!();
 ///
 /// let rotations = encoder.rotations();
@@ -25,14 +25,14 @@ use vexide_devices::smart::rotation::RotationSensor;
 /// ```
 
 pub trait Encoder {
-    /// Returns the total accumulated rotation as a typed angle.
+    /// Returns the total accumulated rotation as odom typed angle.
     ///
     /// The rotation value represents the total angle turned since the encoder
     /// was initialized or last reset.
     ///
     /// # Returns
     ///
-    /// The total rotation as a [`QAngle`].
+    /// The total rotation as odom [`QAngle`].
     ///
     /// # Panics
     ///
@@ -56,7 +56,7 @@ impl Encoder for AdiEncoder<360> {
 
 impl Encoder for RotationSensor {
     fn rotations(&self) -> QAngle {
-        QAngle::from_radians(self.position().unwrap().as_turns())
+        QAngle::from_turns(self.position().unwrap().as_turns())
     }
 
     fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>> {

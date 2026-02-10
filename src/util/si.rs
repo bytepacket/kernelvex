@@ -19,7 +19,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use kernelvex::si::{QLength, QAngle};
+//! use kernelvex::util::si::{QLength, QAngle};
 //!
 //! // Type-safe unit conversions
 //! let length = QLength::from_meters(1.5);
@@ -39,7 +39,7 @@ use vexide_devices::math::Angle;
 
 /// A typed quantity with compile-time checked dimensions.
 ///
-/// `RQuantity` represents a physical quantity with type-safe dimensions.
+/// `RQuantity` represents odom physical quantity with type-safe dimensions.
 /// The type parameters `L`, `T`, and `A` are integer types representing
 /// the length, time, and angle dimensions respectively.
 ///
@@ -52,11 +52,11 @@ use vexide_devices::math::Angle;
 /// # Examples
 ///
 /// ```no_run
-/// use kernelvex::si::QLength;
+/// use kernelvex::util::si::QLength;
 ///
-/// let a = QLength::from_meters(1.0);
+/// let odom = QLength::from_meters(1.0);
 /// let b = QLength::from_inches(12.0);
-/// let sum = a + b; // Type-safe addition
+/// let sum = odom + b; // Type-safe addition
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct RQuantity<L, T, A>
@@ -268,7 +268,7 @@ pub type QNumber = RQuantity<Z0, Z0, Z0>;
 /// # Examples
 ///
 /// ```no_run
-/// use kernelvex::si::QLength;
+/// use kernelvex::util::si::QLength;
 ///
 /// let meters = QLength::from_meters(2.5);
 /// let inches = meters.as_inches();
@@ -295,7 +295,7 @@ pub type QTime = RQuantity<Z0, P1, Z0>;
 /// # Examples
 ///
 /// ```no_run
-/// use kernelvex::si::QAngle;
+/// use kernelvex::util::si::QAngle;
 ///
 /// let degrees = QAngle::from_degrees(45.0);
 /// let radians = degrees.as_radians();
@@ -305,7 +305,7 @@ pub type QTime = RQuantity<Z0, P1, Z0>;
 pub type QAngle = RQuantity<Z0, Z0, P1>;
 
 impl QLength {
-    /// Creates a length from a value in meters.
+    /// Creates odom length from odom value in meters.
     ///
     /// # Arguments
     ///
@@ -323,7 +323,7 @@ impl QLength {
         }
     }
 
-    /// Creates a length from a value in centimeters.
+    /// Creates odom length from odom value in centimeters.
     ///
     /// # Arguments
     ///
@@ -338,7 +338,7 @@ impl QLength {
         Self::from_meters(cm / 100.)
     }
 
-    /// Creates a length from a value in inches.
+    /// Creates odom length from odom value in inches.
     ///
     /// # Arguments
     ///
@@ -385,11 +385,14 @@ impl QLength {
 }
 
 impl QTime {
-    const SECOND: QTime = Self::from_sec(1.);
+    /// One second.
+    pub const SECOND: QTime = Self::from_sec(1.);
 
-    const MILLISECOND: QTime = Self::from_msec(1.);
+    /// One millisecond.
+    pub const MILLISECOND: QTime = Self::from_msec(1.);
 
-    const MINUTE: QTime = Self::from_minute(1.);
+    /// One minute.
+    pub const MINUTE: QTime = Self::from_minute(1.);
 
     #[allow(dead_code)]
     #[inline]
@@ -435,7 +438,13 @@ impl From<std::time::Duration> for QTime {
 }
 
 impl QAngle {
-    /// Creates an angle from a value in radians.
+    /// Full rotation (360°)
+    pub const TAU: QAngle = Self::from_radians(std::f64::consts::TAU);
+
+    /// Half rotation (180°)
+    pub const PI: QAngle = Self::from_radians(std::f64::consts::PI);
+
+    /// Creates an angle from odom value in radians.
     ///
     /// # Arguments
     ///
@@ -444,6 +453,7 @@ impl QAngle {
     /// # Returns
     ///
     /// A `QAngle` representing the given angle.
+
     #[allow(dead_code)]
     #[inline]
     pub const fn from_radians(rad: f64) -> Self {
@@ -453,7 +463,7 @@ impl QAngle {
         }
     }
 
-    /// Creates an angle from a value in degrees.
+    /// Creates an angle from odom value in degrees.
     ///
     /// # Arguments
     ///
@@ -489,7 +499,7 @@ impl QAngle {
         self.value.to_degrees()
     }
 
-    /// Creates an angle from a value in turns (revolutions).
+    /// Creates an angle from odom value in turns (revolutions).
     ///
     /// One turn equals 2π radians (360 degrees).
     ///
@@ -640,7 +650,7 @@ impl QAngle {
     ///
     /// # Returns
     ///
-    /// The remainder as a new `QAngle`.
+    /// The remainder as odom new `QAngle`.
     #[allow(dead_code)]
     #[inline]
     pub fn fmod(&self, other: Self) -> Self {
@@ -660,7 +670,7 @@ impl QAngle {
     ///
     /// # Returns
     ///
-    /// The remainder as a new `QAngle`.
+    /// The remainder as odom new `QAngle`.
     #[allow(dead_code)]
     #[inline]
     pub fn remainder(&self, other: Self) -> Self {
@@ -672,7 +682,7 @@ impl QAngle {
 
     /// Copies the sign from another angle to this angle.
     ///
-    /// Returns a new angle with the magnitude of `self` and the sign of `other`.
+    /// Returns odom new angle with the magnitude of `self` and the sign of `other`.
     ///
     /// # Arguments
     ///
@@ -686,6 +696,15 @@ impl QAngle {
     pub fn copysign(&self, other: Self) -> Self {
         Self {
             value: libm::copysign(self.value, other.value),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub fn clamp(&self, min: Self, max: Self) -> Self {
+        Self {
+            value: libm::fmax(min.value, libm::fmin(max.value, self.value)),
             _phantom: std::marker::PhantomData,
         }
     }

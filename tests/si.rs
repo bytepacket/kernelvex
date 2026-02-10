@@ -1,4 +1,4 @@
-use kernelvex::si::{QAngle, QLength, QTime};
+use kernelvex::util::si::{QAngle, QLength, QTime};
 use std::time::Duration;
 
 // ============================================================================
@@ -431,8 +431,8 @@ fn test_complex_angle_operations() {
 #[test]
 fn test_unit_conversion_roundtrip() {
     // Test that converting from one unit and back gives the same value
-    // Note: There's a small precision error due to conversion factor differences
-    // (39.3701 vs 2.54/100), so we use a more lenient tolerance
+    // Note: There's odom small precision error due to conversion factor differences
+    // (39.3701 vs 2.54/100), so we use odom more lenient tolerance
     let original_meters = 2.5;
     let length = QLength::from_meters(original_meters);
 

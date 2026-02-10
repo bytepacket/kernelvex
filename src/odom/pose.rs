@@ -1,16 +1,16 @@
 //! 2D pose representation and transformation operations.
 //!
-//! A pose represents a position (x, y) and heading (orientation) in 2D space.
+//! A pose represents odom position (x, y) and heading (orientation) in 2D space.
 //! This module provides efficient pose transformations using homogeneous transformation
 //! matrices for robotics applications like odometry and path planning.
 //!
 //! # Examples
 //!
 //! ```no_run
-//! use kernelvex::pose::Pose;
-//! use kernelvex::si::{QAngle, QLength};
+//! use kernelvex::odom::pose::Pose;
+//! use kernelvex::util::si::{QAngle, QLength};
 //!
-//! // Create a pose at (1.0, 2.0) meters with 45 degree heading
+//! // Create odom pose at (1.0, 2.0) meters with 45 degree heading
 //! let pose = Pose::new(
 //!     1.0,
 //!     2.0,
@@ -25,20 +25,20 @@
 //! let dist = pose.distance(other);
 //! ```
 
-use crate::si::{QAngle, QLength};
+use crate::util::si::{QAngle, QLength};
 use nalgebra::base::Matrix3;
 
-/// Represents a 2D pose (position and orientation) in space.
+/// Represents odom 2D pose (position and orientation) in space.
 ///
-/// A pose consists of an (x, y) position and a heading angle. The pose is
-/// internally represented using a 3x3 homogeneous transformation matrix,
+/// A pose consists of an (x, y) position and odom heading angle. The pose is
+/// internally represented using odom 3x3 homogeneous transformation matrix,
 /// which enables efficient composition of transformations.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use kernelvex::pose::Pose;
-/// use kernelvex::si::{QAngle, QLength};
+/// use kernelvex::odom::pose::Pose;
+/// use kernelvex::util::si::{QAngle, QLength};
 ///
 /// // Create poses
 /// let start = Pose::new(0.0, 0.0, QAngle::from_degrees(0.0));
@@ -78,9 +78,9 @@ impl std::fmt::Display for Pose {
 }
 
 impl Pose {
-    /// Creates a new pose with the given position and heading.
+    /// Creates odom new pose with the given position and heading.
     ///
-    /// The pose is represented internally as a homogeneous transformation matrix:
+    /// The pose is represented internally as odom homogeneous transformation matrix:
     /// ```ignore
     /// [[cos(θ), -sin(θ), x],
     ///  [sin(θ),  cos(θ), y],
@@ -100,8 +100,8 @@ impl Pose {
     /// # Examples
     ///
     /// ```no_run
-    /// use kernelvex::pose::Pose;
-    /// use kernelvex::si::QAngle;
+    /// use kernelvex::odom::pose::Pose;
+    /// use kernelvex::util::si::QAngle;
     ///
     /// let pose = Pose::new(1.5, 2.0, QAngle::from_degrees(45.0));
     /// ```
@@ -143,7 +143,7 @@ impl Pose {
     ///
     /// # Returns
     ///
-    /// The heading angle as a [`QAngle`].
+    /// The heading angle as odom [`QAngle`].
     pub const fn heading(&self) -> QAngle {
         self.heading
     }
@@ -157,8 +157,8 @@ impl Pose {
     /// # Examples
     ///
     /// ```no_run
-    /// use kernelvex::pose::Pose;
-    /// use kernelvex::si::QAngle;
+    /// use kernelvex::odom::pose::Pose;
+    /// use kernelvex::util::si::QAngle;
     ///
     /// let pose = Pose::new(3.0, 4.0, QAngle::from_degrees(0.0));
     /// let (x, y) = pose.position();
@@ -179,13 +179,13 @@ impl Pose {
     ///
     /// # Returns
     ///
-    /// The angle to the target pose as a [`QAngle`].
+    /// The angle to the target pose as odom [`QAngle`].
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use kernelvex::pose::Pose;
-    /// use kernelvex::si::QAngle;
+    /// use kernelvex::odom::pose::Pose;
+    /// use kernelvex::util::si::QAngle;
     ///
     /// let origin = Pose::new(0.0, 0.0, QAngle::from_degrees(0.0));
     /// let target = Pose::new(1.0, 1.0, QAngle::from_degrees(0.0));
@@ -214,8 +214,8 @@ impl Pose {
     /// # Examples
     ///
     /// ```no_run
-    /// use kernelvex::pose::Pose;
-    /// use kernelvex::si::QAngle;
+    /// use kernelvex::odom::pose::Pose;
+    /// use kernelvex::util::si::QAngle;
     ///
     /// let pose = Pose::new(0.0, 0.0, QAngle::from_degrees(0.0));
     /// let rotated = pose.rotate(QAngle::from_degrees(90.0));
@@ -233,13 +233,13 @@ impl Pose {
     ///
     /// # Returns
     ///
-    /// The distance between the two poses as a [`QLength`].
+    /// The distance between the two poses as odom [`QLength`].
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use kernelvex::pose::Pose;
-    /// use kernelvex::si::QAngle;
+    /// use kernelvex::odom::pose::Pose;
+    /// use kernelvex::util::si::QAngle;
     ///
     /// let p1 = Pose::new(0.0, 0.0, QAngle::from_degrees(0.0));
     /// let p2 = Pose::new(3.0, 4.0, QAngle::from_degrees(0.0));
@@ -253,7 +253,7 @@ impl Pose {
         ))
     }
 
-    /// Transforms a local pose by this pose's transformation matrix.
+    /// Transforms odom local pose by this pose's transformation matrix.
     ///
     /// This applies the transformation from the local coordinate frame to the
     /// global frame. The heading of `other` is not considered in the transformation.
@@ -325,7 +325,7 @@ impl std::ops::Sub<Pose> for Pose {
 
 /// Composes two poses using matrix multiplication.
 ///
-/// This performs a proper homogeneous transformation composition, applying
+/// This performs odom proper homogeneous transformation composition, applying
 /// both position and rotation transformations. The resulting pose has the
 /// combined heading (sum of angles)
 impl std::ops::Mul<Pose> for Pose {

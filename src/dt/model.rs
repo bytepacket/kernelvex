@@ -1,4 +1,4 @@
-use crate::utils::GroupErrors;
+use crate::util::utils::GroupErrors;
 
 pub trait Tank {
     fn drive_tank(&mut self, left: f64, right: f64) -> Result<(), GroupErrors>;
