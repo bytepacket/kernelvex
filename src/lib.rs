@@ -35,4 +35,8 @@ pub mod odom;
 pub mod motion;
 
 pub use control::pid::{AngularPid, Pid};
+
+pub use control::purepursuit::PurePursuit;
 pub mod util;
+
+pub use util::si::*;

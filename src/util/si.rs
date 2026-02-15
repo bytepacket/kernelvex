@@ -69,6 +69,268 @@ where
     _phantom: std::marker::PhantomData<(L, T, A)>,
 }
 
+/// A 2D vector with generic component type.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Vector2<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T> Vector2<T> {
+    #[inline]
+    pub const fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+
+    #[inline]
+    pub const fn as_tuple(&self) -> (T, T)
+    where
+        T: Copy,
+    {
+        (self.x, self.y)
+    }
+
+}
+
+impl Vector2<f64> {
+    #[inline]
+    pub const fn zero() -> Self {
+        Self { x: 0.0, y: 0.0 }
+    }
+
+    #[inline]
+    pub fn dot(self, other: Self) -> f64 {
+        self.x * other.x + self.y * other.y
+    }
+
+    #[inline]
+    pub fn cross(self, other: Self) -> f64 {
+        self.x * other.y - self.y * other.x
+    }
+
+    #[inline]
+    pub fn perp(self) -> Self {
+        Self {
+            x: -self.y,
+            y: self.x,
+        }
+    }
+
+    #[inline]
+    pub fn norm_squared(self) -> f64 {
+        self.dot(self)
+    }
+
+    #[inline]
+    pub fn norm(self) -> f64 {
+        libm::sqrt(self.x * self.x + self.y * self.y)
+    }
+
+    #[inline]
+    pub fn normalize(self) -> Self {
+        let mag = self.norm();
+        if mag == 0.0 {
+            Self::zero()
+        } else {
+            Self::new(self.x / mag, self.y / mag)
+        }
+    }
+
+    #[inline]
+    pub fn distance(self, other: Self) -> f64 {
+        (self - other).norm()
+    }
+
+    #[inline]
+    pub fn lerp(self, other: Self, t: f64) -> Self {
+        self + (other - self) * t
+    }
+}
+
+impl<L: Integer, T: Integer, A: Integer> Vector2<RQuantity<L, T, A>> {
+    #[inline]
+    pub fn zero() -> Self {
+        Self {
+            x: RQuantity::default(),
+            y: RQuantity::default(),
+        }
+    }
+
+    #[inline]
+    pub fn dot(self, other: Self) -> RQuantity<Sum<L, L>, Sum<T, T>, Sum<A, A>>
+    where
+        L: std::ops::Add<L>,
+        T: std::ops::Add<T>,
+        A: std::ops::Add<A>,
+        Sum<L, L>: Integer,
+        Sum<T, T>: Integer,
+        Sum<A, A>: Integer,
+    {
+        self.x * other.x + self.y * other.y
+    }
+
+    #[inline]
+    pub fn cross(self, other: Self) -> RQuantity<Sum<L, L>, Sum<T, T>, Sum<A, A>>
+    where
+        L: std::ops::Add<L>,
+        T: std::ops::Add<T>,
+        A: std::ops::Add<A>,
+        Sum<L, L>: Integer,
+        Sum<T, T>: Integer,
+        Sum<A, A>: Integer,
+    {
+        self.x * other.y - self.y * other.x
+    }
+
+    #[inline]
+    pub fn perp(self) -> Self {
+        Self {
+            x: -self.y,
+            y: self.x,
+        }
+    }
+
+    #[inline]
+    pub fn norm_squared(self) -> RQuantity<Sum<L, L>, Sum<T, T>, Sum<A, A>>
+    where
+        L: std::ops::Add<L>,
+        T: std::ops::Add<T>,
+        A: std::ops::Add<A>,
+        Sum<L, L>: Integer,
+        Sum<T, T>: Integer,
+        Sum<A, A>: Integer,
+    {
+        self.dot(self)
+    }
+
+    #[inline]
+    pub fn norm(self) -> RQuantity<L, T, A> {
+        RQuantity {
+            value: libm::sqrt(self.x.value * self.x.value + self.y.value * self.y.value),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn normalize(self) -> Vector2<QNumber> {
+        let mag = self.norm().value;
+        if mag == 0.0 {
+            Vector2::new(QNumber::default(), QNumber::default())
+        } else {
+            Vector2::new(
+                QNumber {
+                    value: self.x.value / mag,
+                    _phantom: std::marker::PhantomData,
+                },
+                QNumber {
+                    value: self.y.value / mag,
+                    _phantom: std::marker::PhantomData,
+                },
+            )
+        }
+    }
+
+    #[inline]
+    pub fn distance(self, other: Self) -> RQuantity<L, T, A> {
+        (self - other).norm()
+    }
+
+    #[inline]
+    pub fn lerp(self, other: Self, t: f64) -> Self {
+        self + (other - self) * t
+    }
+}
+
+impl<T> std::ops::Add for Vector2<T>
+where
+    T: std::ops::Add<Output = T>,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<T> std::ops::Sub for Vector2<T>
+where
+    T: std::ops::Sub<Output = T>,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl<T> std::ops::Neg for Vector2<T>
+where
+    T: std::ops::Neg<Output = T>,
+{
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
+
+impl<T> std::ops::AddAssign for Vector2<T>
+where
+    T: std::ops::AddAssign,
+{
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+impl<T> std::ops::SubAssign for Vector2<T>
+where
+    T: std::ops::SubAssign,
+{
+    fn sub_assign(&mut self, rhs: Self) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
+    }
+}
+
+impl<T> std::ops::Mul<f64> for Vector2<T>
+where
+    T: std::ops::Mul<f64, Output = T>,
+{
+    type Output = Self;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl<T> std::ops::Div<f64> for Vector2<T>
+where
+    T: std::ops::Div<f64, Output = T>,
+{
+    type Output = Self;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Self {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        }
+    }
+}
+
 impl<L: Integer, T: Integer, A: Integer> std::ops::Add for RQuantity<L, T, A> {
     type Output = Self;
 
@@ -77,6 +339,13 @@ impl<L: Integer, T: Integer, A: Integer> std::ops::Add for RQuantity<L, T, A> {
             value: self.value + rhs.value,
             _phantom: std::marker::PhantomData,
         }
+    }
+}
+
+impl<L: Integer, T: Integer, A: Integer> RQuantity<L, T, A> {
+    #[inline]
+    pub const fn raw(&self) -> f64 {
+        self.value
     }
 }
 
@@ -303,6 +572,26 @@ pub type QTime = RQuantity<Z0, P1, Z0>;
 /// ```
 #[allow(dead_code)]
 pub type QAngle = RQuantity<Z0, Z0, P1>;
+
+impl From<Vector2<f64>> for nalgebra::Vector2<f64> {
+    fn from(value: Vector2<f64>) -> Self {
+        nalgebra::Vector2::new(value.x, value.y)
+    }
+}
+
+impl From<nalgebra::Vector2<f64>> for Vector2<f64> {
+    fn from(value: nalgebra::Vector2<f64>) -> Self {
+        Self::new(value.x, value.y)
+    }
+}
+
+impl std::ops::Mul<Vector2<f64>> for f64 {
+    type Output = Vector2<f64>;
+
+    fn mul(self, rhs: Vector2<f64>) -> Self::Output {
+        rhs * self
+    }
+}
 
 impl QLength {
     /// Creates odom length from odom value in meters.

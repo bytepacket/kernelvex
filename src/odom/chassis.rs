@@ -1,10 +1,8 @@
-use crate::dt::model::Drivetrain;
-use crate::odom::sensors::Encoder;
-use crate::TrackingWheel;
+use crate::{DifferentialDrive, TrackingWheel};
 use vexide_devices::smart::imu::InertialSensor;
 
-struct OdomChassis<D: Drivetrain, T: Encoder> {
-    dt: D,
+struct OdomChassis<const N: usize> {
+    dt: DifferentialDrive<N>,
     imu: InertialSensor,
-    wheel: TrackingWheel<T>,
+    wheel: TrackingWheel,
 }

@@ -3,6 +3,7 @@
 use crate::util::si::QAngle;
 use crate::util::utils::GroupErrors;
 use std::{cell::RefCell, rc::Rc};
+use std::ops::Div;
 use vexide_devices::smart::motor::MotorControl;
 use vexide_devices::{
     math::Direction,
@@ -47,12 +48,17 @@ impl<const N: usize> MotorGroup<N> {
         std::cell::RefMut::map(self.motors.borrow_mut(), |arr| &mut arr[index])
     }
 
+    /// Returns size of `Motor` Array
+    pub const fn count(&self) -> usize {
+        N
+    }
+
     /// Creates odom new motor group from odom shared motor array.
     ///
     /// # Arguments
     ///
     /// * `motors` - A reference-counted, interior-mutable array of motors
-    pub fn new(motors: Rc<RefCell<[Motor; N]>>) -> Self {
+    pub const fn new(motors: Rc<RefCell<[Motor; N]>>) -> Self {
         MotorGroup::<N> { motors }
     }
 
@@ -202,6 +208,7 @@ impl<const N: usize> MotorGroup<N> {
             Err(ret)
         }
     }
+    
 }
 
 /// A motor group with 2 motors.

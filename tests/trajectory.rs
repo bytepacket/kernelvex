@@ -1,5 +1,6 @@
-use kernelvex::motion::trajectory::{Trajectory, TrajectoryPoint};
+use kernelvex::motion::trajectory::{Bezier, Trajectory, TrajectoryPoint};
 use kernelvex::odom::pose::Pose;
+use kernelvex::util::si::Vector2;
 use kernelvex::util::si::{QAngle, QTime};
 
 #[test]
@@ -130,4 +131,26 @@ fn test_trajectory_total_time() {
 fn test_trajectory_sample_empty() {
     let traj = Trajectory::new();
     assert!(traj.sample(QTime::from_sec(0.0)).is_none());
+}
+
+#[test]
+fn test_bezier_to_trajectory_endpoints() {
+    let bezier = Bezier::new(
+        Vector2::<f64>::new(0.0, 0.0),
+        Vector2::<f64>::new(1.0, 0.0),
+        Vector2::<f64>::new(1.0, 1.0),
+        Vector2::<f64>::new(2.0, 1.0),
+    );
+
+    let traj = bezier.to_trajectory(QTime::from_sec(2.0), 5, 1.0);
+    let start = traj.sample(QTime::from_sec(0.0)).unwrap();
+    let end = traj.sample(QTime::from_sec(2.0)).unwrap();
+
+    let (sx, sy) = start.pose.position();
+    let (ex, ey) = end.pose.position();
+
+    assert!((sx - 0.0).abs() < 1e-9);
+    assert!((sy - 0.0).abs() < 1e-9);
+    assert!((ex - 2.0).abs() < 1e-9);
+    assert!((ey - 1.0).abs() < 1e-9);
 }
