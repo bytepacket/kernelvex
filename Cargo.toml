@@ -16,5 +16,4 @@ typenum = { version = "1.19.0", default-features = false }
 humantime = { version = "2.3.0", default-features = false }
 thread-id = { version = "5.1.0", default-features = false }
 heapless = { version = "0.9.2", default-features = false }
-futures-executor = { version = "0.3", default-features = false }
 
