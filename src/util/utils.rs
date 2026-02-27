@@ -18,7 +18,7 @@ pub enum Orientation {
     CCW,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum TrackingWheelOrientation {
     Vertical(QLength),
     Horizontal(QLength),

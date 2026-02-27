@@ -65,11 +65,11 @@ impl RamseteController {
 
     /// Computes the linear and angular velocity commands.
     pub fn calculate(&self, current: Pose, reference: RamseteReference) -> (f64, f64) {
-        let (x, y) = current.position();
-        let (x_ref, y_ref) = reference.pose.position();
+        let coords = current.position();
+        let refer = reference.pose.position();
 
-        let dx = x_ref - x;
-        let dy = y_ref - y;
+        let dx = refer.x - coords.x;
+        let dy = refer.y - coords.y;
 
         let heading = current.heading();
         let cos_h = heading.cos();

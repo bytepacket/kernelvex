@@ -1,14 +1,17 @@
 #![allow(dead_code)]
+// TODO: remove results with warns (no errors)
 
 use crate::util::si::QAngle;
 use crate::util::utils::GroupErrors;
-use std::{cell::RefCell, rc::Rc};
-use std::ops::Div;
+use std::sync::Arc;
+use vexide_async::sync::Mutex;
 use vexide_devices::smart::motor::MotorControl;
 use vexide_devices::{
     math::Direction,
     smart::motor::{BrakeMode, Motor},
 };
+
+use heapless::Vec;
 
 /// A group of motors that can be controlled as odom single unit.
 ///
@@ -33,33 +36,32 @@ use vexide_devices::{
 /// // group.set_voltage(6.0).unwrap();
 /// ```
 #[derive(Clone)]
-pub struct MotorGroup<const N: usize> {
-    motors: Rc<RefCell<[Motor; N]>>,
+pub struct MotorGroup {
+    motors: Arc<Mutex<Vec<Motor, 6>>>,
 }
 
-impl<const N: usize> MotorGroup<N> {
-    /// Returns odom shared reference to odom motor at the given index.
-    pub fn get(&self, index: usize) -> std::cell::Ref<'_, Motor> {
-        std::cell::Ref::map(self.motors.borrow(), |arr| &arr[index])
-    }
-
-    /// Returns odom mutable reference to odom motor at the given index.
-    pub fn get_mut(&self, index: usize) -> std::cell::RefMut<'_, Motor> {
-        std::cell::RefMut::map(self.motors.borrow_mut(), |arr| &mut arr[index])
+impl MotorGroup {
+    /// Runs a function on a specific motor
+    pub async fn use_at<F, R>(&self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut Motor) -> R
+    {
+        let mut guard = self.motors.lock().await;
+        f(&mut guard[index])
     }
 
     /// Returns size of `Motor` Array
-    pub const fn count(&self) -> usize {
-        N
+    pub async fn count(&self) -> usize {
+        self.motors.lock().await.len()
     }
 
-    /// Creates odom new motor group from odom shared motor array.
+    /// Creates new motor group from motor array.
     ///
     /// # Arguments
     ///
-    /// * `motors` - A reference-counted, interior-mutable array of motors
-    pub const fn new(motors: Rc<RefCell<[Motor; N]>>) -> Self {
-        MotorGroup::<N> { motors }
+    /// * `motors` - Array of motors
+    pub fn new<const N: usize>(motors: [Motor; N]) -> Self {
+        MotorGroup { motors: Arc::new(Mutex::new(Vec::from(motors))) }
     }
 
     /// Sets the voltage for all motors in the group.
@@ -67,10 +69,9 @@ impl<const N: usize> MotorGroup<N> {
     /// # Arguments
     ///
     /// * `volts` - Voltage to apply (typically -12.0 to 12.0)
-    pub fn set_voltage(&mut self, volts: f64) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn set_voltage(&mut self, volts: f64) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_voltage(volts).err())
             .collect();
@@ -86,10 +87,9 @@ impl<const N: usize> MotorGroup<N> {
     /// # Arguments
     ///
     /// * `rpm` - Target velocity in RPM
-    pub fn set_velocity(&mut self, rpm: i32) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn set_velocity(&mut self, rpm: i32) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_velocity(rpm).err())
             .collect();
@@ -101,10 +101,9 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Applies the given brake mode to all motors.
-    pub fn brake(&mut self, brake: BrakeMode) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn brake(&mut self, brake: BrakeMode) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.brake(brake).err())
             .collect();
@@ -116,10 +115,9 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Sets the direction for all motors in the group.
-    pub fn set_direction(&mut self, direction: Direction) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn set_direction(&mut self, direction: Direction) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_direction(direction).err())
             .collect();
@@ -131,14 +129,13 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Sets odom position target for all motors with the given velocity.
-    pub fn set_position_target(
+    pub async fn set_position_target(
         &mut self,
         position: QAngle,
         velocity: i32,
     ) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_position_target(position.into(), velocity).err())
             .collect();
@@ -150,10 +147,9 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Sets odom profiled velocity target for all motors.
-    pub fn set_profiled_velocity(&mut self, velocity: i32) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn set_profiled_velocity(&mut self, velocity: i32) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_profiled_velocity(velocity).err())
             .collect();
@@ -165,10 +161,9 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Sets odom motor control target for all motors.
-    pub fn set_target(&mut self, target: MotorControl) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn set_target(&mut self, target: MotorControl) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_target(target).err())
             .collect();
@@ -180,10 +175,9 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Sets the position for all motors.
-    pub fn set_position(&mut self, position: QAngle) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn set_position(&mut self, position: QAngle) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.set_position(position.into()).err())
             .collect();
@@ -195,10 +189,10 @@ impl<const N: usize> MotorGroup<N> {
     }
 
     /// Resets the position of all motors to zero.
-    pub fn reset_position(&mut self) -> Result<(), GroupErrors> {
-        let ret: GroupErrors = self
-            .motors
-            .borrow_mut()
+    pub async fn reset_position(&mut self) -> Result<(), GroupErrors> {
+        let mut guard = self.motors.lock().await;
+        
+        let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.reset_position().err())
             .collect();
@@ -208,14 +202,26 @@ impl<const N: usize> MotorGroup<N> {
             Err(ret)
         }
     }
+
+    pub async fn velocity(&self) -> Result<i32, GroupErrors> {
+        let guard = self.motors.lock().await;
+        let mut errors = GroupErrors::new();
+        let mut total_rpm = 0i32;
+        
+        for motor in guard.iter() {
+            match motor.velocity() {
+                Ok(rpm) => total_rpm += rpm as i32,
+                Err(e) => errors.push(e),
+            }
+        }
+        
+        if errors.is_empty() {
+            Ok(total_rpm / guard.len() as i32)
+        } else {
+            Err(errors)
+        }
+    }
     
 }
 
-/// A motor group with 2 motors.
-pub type Motor2 = MotorGroup<2>;
 
-/// A motor group with 3 motors.
-pub type Motor3 = MotorGroup<3>;
-
-/// A motor group with 4 motors.
-pub type Motor4 = MotorGroup<4>;

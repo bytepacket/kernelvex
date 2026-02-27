@@ -1,6 +1,6 @@
 [package]
 name = "kernelvex"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 license = "MIT"
 description = "VEX Controls library"
@@ -11,7 +11,10 @@ homepage = "https://www.2381.ca"
 libm = "0.2.16"
 nalgebra = { version = "0.34.1", default-features = false, features = ["libm"] }
 vexide-devices = { version = "0.8.0", default-features = false }
-vexide-async = { version = "0.2.0", default-features = false}
+vexide-async = { version = "0.2.0", default-features = false, features = ["sync"] }
 typenum = { version = "1.19.0", default-features = false }
 humantime = { version = "2.3.0", default-features = false }
 thread-id = { version = "5.1.0", default-features = false }
+heapless = { version = "0.9.2", default-features = false }
+futures-executor = { version = "0.3", default-features = false }
+

@@ -45,8 +45,7 @@ impl PurePursuit {
             return points.first().copied();
         }
 
-        let (cx, cy) = pose.position();
-        let center = Vector2::<f64>::new(cx, cy);
+        let center = pose.position();
         let radius = self.lookahead;
 
         let mut best: Option<(usize, f64, Vector2<f64>)> = None;
@@ -54,8 +53,8 @@ impl PurePursuit {
         for (index, window) in points.windows(2).enumerate() {
             let a_pose = window[0].pose;
             let b_pose = window[1].pose;
-            let a = Vector2::<f64>::new(a_pose.position().0, a_pose.position().1);
-            let b = Vector2::<f64>::new(b_pose.position().0, b_pose.position().1);
+            let a = a_pose.position();
+            let b = b_pose.position();
 
             let candidates = segment_circle_intersections(a, b, center, radius);
             for (t, point) in candidates {
@@ -78,7 +77,7 @@ impl PurePursuit {
         let b = segment[1];
 
         Some(TrajectoryPoint::new(
-            Pose::new(point.x, point.y, a.pose.heading()),
+            Pose::new(point, a.pose.heading()),
             lerp(a.linear_velocity, b.linear_velocity, t),
             lerp(a.angular_velocity, b.angular_velocity, t),
             a.time + (b.time - a.time) * t,
@@ -87,9 +86,9 @@ impl PurePursuit {
 
     /// Computes curvature toward the lookahead point in the robot frame.
     pub fn curvature(&self, pose: Pose, target: Vector2<f64>) -> f64 {
-        let (x, y) = pose.position();
-        let dx = target.x - x;
-        let dy = target.y - y;
+        let coords = pose.position();
+        let dx = target.x - coords.x;
+        let dy = target.y - coords.y;
 
         let heading = pose.heading();
         let cos_h = heading.cos();

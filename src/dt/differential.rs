@@ -1,6 +1,6 @@
 use crate::dt::model::{Arcade, CurvatureDrive, Drivetrain, Tank};
 use crate::util::utils::GroupErrors;
-use crate::MotorGroup;
+use crate::{MotorGroup, Vector2};
 
 /// A differential (tank-style) drivetrain with left and right motor groups.
 ///
@@ -10,56 +10,85 @@ use crate::MotorGroup;
 /// # Type Parameters
 ///
 /// * `N` - The number of motors per side
-pub struct DifferentialDrive<const N: usize> {
-    left: MotorGroup<N>,
-    right: MotorGroup<N>,
+pub struct DifferentialDrive {
+    left: MotorGroup,
+    right: MotorGroup,
+    expo: ExpoDrive
 }
 
-impl<const N: usize> DifferentialDrive<N> {
-    #[inline]
-    pub fn new(left: MotorGroup<N>, right: MotorGroup<N>) -> Self {
-        Self { left, right }
+pub struct ExpoDrive {
+    n: f64,
+    k: f64,
+}
+
+impl ExpoDrive {
+    pub fn new(n: f64, k: f64) -> Self {
+        Self { n, k }
+    }
+
+    pub fn calculate(&self, x: f64, y: f64) -> Vector2<f64> {
+        {
+            assert!(-1.0 <= x && x <= 1.0, "x must be between [-1, 1]");
+        }
+
+        {
+            assert!(-1.0 <= y && x <= 1.0, "y must be between [-1, 1]");
+        }
+
+        let m = libm::pow(libm::pow(libm::fabs(x), self.n+2.) + libm::pow(libm::fabs(x), self.n+2.), 1./self.n+2.);
+        let f = libm::pow(m, self.k)/libm::sqrt(x*x + y*y);
+
+        Vector2::<f64>::new(f*x, f*y)
     }
 }
 
-impl<const N: usize> Arcade for DifferentialDrive<N> {
-    fn drive_arcade(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
-        let maximum = libm::fmax(libm::fabs(left), libm::fabs(right));
-        let total = left + right;
-        let difference = left - right;
+impl DifferentialDrive {
+    #[inline]
+    pub fn new(left: MotorGroup, right: MotorGroup, expo: ExpoDrive) -> Self {
+        Self { left, right, expo }
+    }
+}
 
-        if left >= 0. {
-            if right >= 0. {
-                self.left.set_voltage(maximum)?;
-                self.right.set_voltage(difference)?;
+impl Arcade for DifferentialDrive {
+    async fn drive_arcade(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
+        let maximum = libm::fmax(libm::fabs(left), libm::fabs(right));
+        let (x, y) = self.expo.calculate(left, right).as_tuple();
+        let total = x + y;
+        let difference = x - y;
+
+        if x >= 0. {
+            if y >= 0. {
+                self.left.set_voltage(maximum).await?;
+                self.right.set_voltage(difference).await?;
             } else {
-                self.left.set_voltage(total)?;
-                self.right.set_voltage(maximum)?;
+                self.left.set_voltage(total).await?;
+                self.right.set_voltage(maximum).await?;
             }
-        } else if right >= 0. {
-            self.left.set_voltage(total)?;
-            self.right.set_voltage(-maximum)?;
+        } else if y >= 0. {
+            self.left.set_voltage(total).await?;
+            self.right.set_voltage(-maximum).await?;
         } else {
-            self.left.set_voltage(-maximum)?;
-            self.right.set_voltage(difference)?;
+            self.left.set_voltage(-maximum).await?;
+            self.right.set_voltage(difference).await?;
         }
         Ok(())
     }
 }
 
-impl<const N: usize> Tank for DifferentialDrive<N> {
-    fn drive_tank(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
-        self.left.set_voltage(left * 12.0)?;
-        self.right.set_voltage(right * 12.0)?;
+impl Tank for DifferentialDrive {
+    async fn drive_tank(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
+        let (x, y) = self.expo.calculate(left, right).as_tuple();
+        self.left.set_voltage(x * 12.0).await?;
+        self.right.set_voltage(y * 12.0).await?;
 
         Ok(())
     }
 }
 
-impl<const N: usize> CurvatureDrive for DifferentialDrive<N> {
-    fn drive_curvature(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
+impl CurvatureDrive for DifferentialDrive {
+    async fn drive_curvature(&mut self, left: f64, right: f64) -> Result<(), GroupErrors> {
         todo!()
     }
 }
 
-impl<const N: usize> Drivetrain for DifferentialDrive<N> {}
+impl Drivetrain for DifferentialDrive {}

@@ -9,7 +9,8 @@
 //! - [`si`] - Type-safe unit system (length, angle, time)
 //! - [`utils`] - Utility types and helpers
 
-pub use odom::wheel::{OmniWheel, TrackingWheel};
+pub use odom::wheel::{OmniWheel, TrackingWheel, TrackingRig};
+pub use odom::chassis::{OdomChassis, TurnError, ShootError};
 
 pub use control::ramsete::{RamseteController, RamseteReference};
 pub use motion::trajectory::{Trajectory, TrajectoryPoint};
@@ -22,7 +23,7 @@ pub use util::solenoidgroup::SolenoidGroup;
 
 pub use dt::differential::DifferentialDrive;
 pub use dt::motorgroup::MotorGroup;
-use odom::{pose, sensors, wheel};
+use odom::{pose, wheel};
 
 pub mod control;
 pub mod dt;
@@ -40,3 +41,5 @@ pub use control::purepursuit::PurePursuit;
 pub mod util;
 
 pub use util::si::*;
+
+pub use control::feedforward::*;

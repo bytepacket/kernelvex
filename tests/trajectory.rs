@@ -7,13 +7,13 @@ use kernelvex::util::si::{QAngle, QTime};
 fn test_trajectory_sample_endpoints() {
     let mut traj = Trajectory::new();
     traj.push(TrajectoryPoint::new(
-        Pose::new(0.0, 0.0, QAngle::from_degrees(0.0)),
+        Pose::new(Default::default(), QAngle::from_degrees(0.0)),
         0.0,
         0.0,
         QTime::from_sec(0.0),
     ));
     traj.push(TrajectoryPoint::new(
-        Pose::new(1.0, 0.0, QAngle::from_degrees(0.0)),
+        Pose::new(Vector2::<f64>::new(1., 0.), QAngle::from_degrees(0.0)),
         1.0,
         0.0,
         QTime::from_sec(1.0),
@@ -22,8 +22,8 @@ fn test_trajectory_sample_endpoints() {
     let start = traj.sample(QTime::from_sec(0.0)).unwrap();
     let end = traj.sample(QTime::from_sec(1.0)).unwrap();
 
-    let (sx, sy) = start.pose.position();
-    let (ex, ey) = end.pose.position();
+    let (sx, sy) = (start.pose.position().x, start.pose.position().y);
+    let (ex, ey) = (end.pose.position().x, end.pose.position().y);
 
     assert!((sx - 0.0).abs() < 1e-6);
     assert!((sy - 0.0).abs() < 1e-6);
@@ -35,23 +35,23 @@ fn test_trajectory_sample_endpoints() {
 fn test_trajectory_sample_intermediate() {
     let mut traj = Trajectory::new();
     traj.push(TrajectoryPoint::new(
-        Pose::new(0.0, 0.0, QAngle::from_degrees(0.0)),
+        Pose::new(Default::default(), QAngle::from_degrees(0.0)),
         0.0,
         0.0,
         QTime::from_sec(0.0),
     ));
     traj.push(TrajectoryPoint::new(
-        Pose::new(2.0, 0.0, QAngle::from_degrees(0.0)),
+        Pose::new(Vector2::<f64>::new(2., 0.), QAngle::from_degrees(0.0)),
         2.0,
         0.0,
         QTime::from_sec(2.0),
     ));
 
     let mid = traj.sample(QTime::from_sec(1.0)).unwrap();
-    let (mx, my) = mid.pose.position();
+    let m = mid.pose.position();
 
-    assert!((mx - 1.0).abs() < 1e-6);
-    assert!((my - 0.0).abs() < 1e-6);
+    assert!((m.x - 1.0).abs() < 1e-6);
+    assert!((m.y - 0.0).abs() < 1e-6);
     assert!((mid.linear_velocity - 1.0).abs() < 1e-6);
 }
 
@@ -59,13 +59,13 @@ fn test_trajectory_sample_intermediate() {
 fn test_trajectory_sample_out_of_bounds() {
     let mut traj = Trajectory::new();
     traj.push(TrajectoryPoint::new(
-        Pose::new(0.0, 0.0, QAngle::from_degrees(0.0)),
+        Pose::new(Default::default(), QAngle::from_degrees(0.0)),
         0.0,
         0.0,
         QTime::from_sec(0.0),
     ));
     traj.push(TrajectoryPoint::new(
-        Pose::new(1.0, 0.0, QAngle::from_degrees(0.0)),
+        Pose::new(Vector2::<f64>::new(1., 0.), QAngle::from_degrees(0.0)),
         1.0,
         0.0,
         QTime::from_sec(1.0),
@@ -74,26 +74,26 @@ fn test_trajectory_sample_out_of_bounds() {
     let before = traj.sample(QTime::from_sec(-1.0)).unwrap();
     let after = traj.sample(QTime::from_sec(2.0)).unwrap();
 
-    let (bx, by) = before.pose.position();
-    let (ax, ay) = after.pose.position();
+    let b = before.pose.position();
+    let a = after.pose.position();
 
-    assert!((bx - 0.0).abs() < 1e-6);
-    assert!((by - 0.0).abs() < 1e-6);
-    assert!((ax - 1.0).abs() < 1e-6);
-    assert!((ay - 0.0).abs() < 1e-6);
+    assert!((b.x - 0.0).abs() < 1e-6);
+    assert!((b.y - 0.0).abs() < 1e-6);
+    assert!((a.x - 1.0).abs() < 1e-6);
+    assert!((a.y - 0.0).abs() < 1e-6);
 }
 
 #[test]
 fn test_trajectory_heading_interpolation_shortest_arc() {
     let mut traj = Trajectory::new();
     traj.push(TrajectoryPoint::new(
-        Pose::new(0.0, 0.0, QAngle::from_degrees(350.0)),
+        Pose::new(Default::default(), QAngle::from_degrees(350.0)),
         0.0,
         0.0,
         QTime::from_sec(0.0),
     ));
     traj.push(TrajectoryPoint::new(
-        Pose::new(0.0, 0.0, QAngle::from_degrees(10.0)),
+        Pose::new(Default::default(), QAngle::from_degrees(10.0)),
         0.0,
         0.0,
         QTime::from_sec(1.0),
@@ -110,13 +110,13 @@ fn test_trajectory_heading_interpolation_shortest_arc() {
 fn test_trajectory_total_time() {
     let traj = Trajectory::from_points(vec![
         TrajectoryPoint::new(
-            Pose::new(0.0, 0.0, QAngle::from_degrees(0.0)),
+            Pose::new(Default::default(), QAngle::from_degrees(0.0)),
             0.0,
             0.0,
             QTime::from_sec(0.0),
         ),
         TrajectoryPoint::new(
-            Pose::new(1.0, 0.0, QAngle::from_degrees(0.0)),
+            Pose::new(Vector2::<f64>::new(1., 0.), QAngle::from_degrees(0.0)),
             1.0,
             0.0,
             QTime::from_sec(3.0),
@@ -146,11 +146,21 @@ fn test_bezier_to_trajectory_endpoints() {
     let start = traj.sample(QTime::from_sec(0.0)).unwrap();
     let end = traj.sample(QTime::from_sec(2.0)).unwrap();
 
-    let (sx, sy) = start.pose.position();
-    let (ex, ey) = end.pose.position();
+    let s = start.pose.position();
+    let e = end.pose.position();
 
-    assert!((sx - 0.0).abs() < 1e-9);
-    assert!((sy - 0.0).abs() < 1e-9);
-    assert!((ex - 2.0).abs() < 1e-9);
-    assert!((ey - 1.0).abs() < 1e-9);
+    assert!((s.x - 0.0).abs() < 1e-9);
+    assert!((s.y - 0.0).abs() < 1e-9);
+    assert!((e.x - 2.0).abs() < 1e-9);
+    assert!((e.y - 1.0).abs() < 1e-9);
+}
+
+#[test]
+fn test_bezier_point() {
+    let bezier = Bezier::new(Vector2::<f64>::new(1., 0.),
+                                    Vector2::<f64>::new(2., 3.),
+                                    Vector2::<f64>::new(3., 4.),
+                                    Vector2::<f64>::new(5., 6.));
+
+    println!("{:?}", bezier.point(0.7));
 }

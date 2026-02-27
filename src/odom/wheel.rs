@@ -29,21 +29,19 @@
 use crate::odom::pose::Pose;
 use crate::odom::wheel::Encoder::{Adi, Smart};
 use crate::util::si::QLength;
-use crate::util::utils::Orientation;
-use crate::util::utils::TrackingWheelOrientation;
-use crate::QAngle;
+use crate::util::utils::{TrackingWheelOrientation, Orientation};
+use crate::{QAngle, Vector2};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 use vexide_async::task::{spawn, Task};
 use vexide_async::time::sleep;
-use vexide_devices::adi::AdiPort;
 use vexide_devices::adi::encoder::AdiEncoder;
-use vexide_devices::math::Direction;
 use vexide_devices::smart::imu::InertialSensor;
 use vexide_devices::smart::rotation::RotationSensor;
-use vexide_devices::smart::SmartPort;
+use heapless::Vec;
 
+#[derive(Debug)]
 pub enum Encoder {
     Adi(AdiEncoder<360>),
     Smart(RotationSensor),
@@ -103,6 +101,7 @@ impl OmniWheel {
 /// * `T` - The encoder type implementing the [`Encoder`] trait
 ///
 
+#[derive(Debug)]
 pub struct TrackingWheel {
     encoder: Encoder,
     wheel: OmniWheel,
@@ -170,26 +169,29 @@ impl TrackingWheel {
         }
     }
 
-    pub fn distance(&mut self) -> QLength {
+    pub fn distance(&self) -> QLength {
         let circumference = self.wheel.size() * std::f64::consts::PI;
 
         let rotations = match &self.encoder {
-            Adi(encoder) => QAngle::from_turns(encoder.position().unwrap().as_turns()),
-            Smart(encoder) => QAngle::from_turns(encoder.position().unwrap().as_turns()),
+            Adi(encoder) => {
+                QAngle::from_turns(encoder.position().unwrap().as_turns())
+            }
+            Smart(encoder) => {
+                QAngle::from_turns(encoder.position().unwrap().as_turns())
+            }
         };
 
         let distance =
             (circumference * std::f64::consts::PI * rotations.as_radians()) / self.gearing;
 
-        self.total = distance;
-
-        self.total
+        distance
     }
 
     /// Returns the distance traveled since the last call to `delta`.
     pub fn delta(&mut self) -> QLength {
         let previous = self.total;
         let current = self.distance();
+        self.total = current;
         current - previous
     }
 
@@ -226,24 +228,32 @@ impl TrackingWheel {
 }
 
 // based off evian
-pub struct TrackingRig<const N: usize, const U: usize> {
+pub struct TrackingRig {
     data: Rc<RefCell<TrackingData>>,
     _task: Task<()>,
 }
 
-impl<const N: usize, const U: usize> TrackingRig<N, U> {
+impl TrackingRig {
     #[inline]
-    pub fn new(
+
+    pub fn new<const N: usize, const U: usize>(
         origin: Pose,
-        mut horizontal: [TrackingWheel; N],
-        mut vertical: [TrackingWheel; U],
+        horizontal: [TrackingWheel; N],
+        vertical: [TrackingWheel; U],
         imu: Option<InertialSensor>,
     ) -> Self {
+
         const {
-            assert!(N > 0, "tracking requires at least one forward wheel");
+            assert!(N <= 2 || U <= 2 , "cannot have over 2 tracking wheels each");
         }
 
-        let parallel_indices = find_parallel_forward_indices(&horizontal);
+        let mut h_wheels: Vec<TrackingWheel, 2> = Vec::from_array(horizontal);
+
+
+        let mut v_wheels: Vec<TrackingWheel, 2> = Vec::from_array(vertical);
+ 
+
+        let parallel_indices = find_parallel_forward_indices(&h_wheels);
 
 
             assert!(
@@ -251,16 +261,18 @@ impl<const N: usize, const U: usize> TrackingRig<N, U> {
                 "gyro or two parallel forward wheels are required to determine heading"
             );
 
-        let initial_heading = compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), &mut horizontal)
+        let initial_heading = compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), &mut h_wheels[..])
             .unwrap_or_default();
-        let initial_forward = horizontal
-            .each_mut()
-            .map(|wheel| wheel.distance().as_meters());
-        let initial_sideways = vertical
-            .each_mut()
-            .map(|wheel| wheel.distance().as_meters());
+        let initial_forward: Vec<f64, 2> = v_wheels
+            .iter_mut()
+            .map(|wheel| wheel.distance().as_meters())
+            .collect();
+        let initial_sideways: f64 = h_wheels
+            .iter_mut()
+            .map(|wheel| wheel.distance().as_meters())
+            .sum();
 
-        let initial_forward_travel = if N > 0 {0.0} else {&initial_forward.iter().sum::<f64>() / N as f64};
+        let initial_forward_travel = if initial_forward.is_empty() { 0.0 } else { initial_forward.iter().sum::<f64>() / initial_forward.len() as f64 };
 
         let data = Rc::new(RefCell::new(TrackingData {
             pose: origin,
@@ -273,19 +285,22 @@ impl<const N: usize, const U: usize> TrackingRig<N, U> {
 
         let task_data = Rc::clone(&data);
 
-        let task = spawn(Self::task(
-            horizontal,
-            vertical,
-            imu,
-            task_data,
-            parallel_indices,
-            initial_forward,
-            initial_sideways,
-            initial_heading,
-            initial_forward_travel,
-        ));
 
-        Self { data, _task: task }
+        let task = spawn(async move {
+            Self::task(
+                &mut v_wheels[..],
+                &mut h_wheels[..],
+                imu,
+                task_data,
+                parallel_indices,
+                Vec::from_slice(&initial_forward).unwrap(),
+                Vec::from_slice(&[initial_sideways]).unwrap(),
+                initial_heading,
+                initial_forward_travel,
+            ).await;
+        });
+
+        Self { data, _task: task}
     }
 
     /// Returns the latest pose estimate.
@@ -305,13 +320,13 @@ impl<const N: usize, const U: usize> TrackingRig<N, U> {
 
     #[allow(clippy::too_many_arguments)]
     async fn task(
-        mut forward: [TrackingWheel; N],
-        mut sideways: [TrackingWheel; U],
+        forward: &mut [TrackingWheel],
+        sideways: &mut [TrackingWheel],
         mut imu: Option<InertialSensor>,
         data: Rc<RefCell<TrackingData>>,
         parallel_indices: Option<(usize, usize)>,
-        mut prev_forward: [f64; N],
-        mut prev_sideways: [f64; U],
+        mut prev_forward: Vec<f64, 2>,
+        mut prev_sideways: Vec<f64, 2>,
         mut prev_raw_heading: QAngle,
         mut prev_forward_travel: f64,
     ) {
@@ -320,14 +335,16 @@ impl<const N: usize, const U: usize> TrackingRig<N, U> {
         loop {
             sleep(Duration::from_millis(10)).await;
 
-        let forward_data = forward
-            .each_mut()
-            .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()));
-        let sideways_data = sideways
-            .each_mut()
-            .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()));
+        let forward_data: Vec<(f64, f64), 2> = forward
+            .iter_mut()
+            .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()))
+            .collect();
+        let sideways_data: Vec<(f64, f64), 2> = sideways
+            .iter_mut()
+            .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()))
+            .collect();
 
-        let raw_heading = match compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), &mut forward) {
+        let raw_heading = match compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), forward) {
                 Ok(heading) => heading,
                 Err(HeadingError::Imu(fallback)) => {
                     imu = None;
@@ -424,10 +441,10 @@ impl<const N: usize, const U: usize> TrackingRig<N, U> {
                 + local_y * libm::cos(avg_heading.as_radians());
 
             let mut state = data.borrow_mut();
-            let (x, y) = state.pose.position();
+            let (x, y) = (state.pose.position().x, state.pose.position().y);
             state.pose = Pose::new(
-                x + dx_field,
-                y + dy_field,
+                Vector2::<f64>::new(x + dx_field,
+                y + dy_field),
                 raw_heading + state.heading_offset,
             );
             state.raw_heading = raw_heading;
@@ -455,14 +472,15 @@ enum HeadingError {
 }
 
 
-fn find_parallel_forward_indices<const N: usize>(forward: &[TrackingWheel; N]) -> Option<(usize, usize)> {
+fn find_parallel_forward_indices(forward: &Vec<TrackingWheel, 2>) -> Option<(usize, usize)> {
     const OFFSET_TOLERANCE: f64 = 0.5;
-    if N < 2 {
+    let n = forward.len();
+    if n < 2 {
         return None;
     }
 
-    for i in 0..N {
-        for j in (i + 1)..N {
+    for i in 0..n {
+        for j in (i + 1)..n {
             let i_offset = forward[i].offset().as_meters();
             let j_offset = forward[j].offset().as_meters();
             if (i_offset + j_offset).abs() <= OFFSET_TOLERANCE {
@@ -474,10 +492,10 @@ fn find_parallel_forward_indices<const N: usize>(forward: &[TrackingWheel; N]) -
     None
 }
 
-fn compute_raw_heading<const N: usize>(
+fn compute_raw_heading (
     imu: Option<&InertialSensor>,
     parallel_indices: Option<&(usize, usize)>,
-    forward: &mut [TrackingWheel; N],
+    forward: &mut [TrackingWheel],
 ) -> Result<QAngle, HeadingError> {
     if let Some(imu_ref) = imu {
         return match imu_ref.heading() {
@@ -500,62 +518,24 @@ fn compute_raw_heading<const N: usize>(
     Err(HeadingError::Imu(None))
 }
 
-fn wheel_heading<const N: usize>(
-    forward: &mut [TrackingWheel; N],
+fn wheel_heading (
+    forward: &mut [TrackingWheel],
     left_index: usize,
     right_index: usize,
 ) -> Option<QAngle> {
-    let (left, right) = if left_index < right_index {
-        let (first, second) = forward.split_at_mut(right_index);
-        (&mut first[left_index], &mut second[0])
-    } else {
-        let (first, second) = forward.split_at_mut(left_index);
-        (&mut second[0], &mut first[right_index])
-    };
+    if left_index >= forward.len() || right_index >= forward.len() {
+        return None;
+    }
 
-    let track_width = (right.offset() - left.offset()).as_meters().abs();
+    let left_offset = forward[left_index].offset();
+    let right_offset = forward[right_index].offset();
+    let track_width = (right_offset - left_offset).as_meters().abs();
     if track_width == 0.0 {
         return None;
     }
 
-    let left_travel = left.distance().as_meters();
-    let right_travel = right.distance().as_meters();
+    let left_travel = forward[left_index].distance().as_meters();
+    let right_travel = forward[right_index].distance().as_meters();
 
     Some(QAngle::from_radians((right_travel - left_travel) / track_width))
-}
-
-async fn test() {
-    let left = TrackingWheel::new(
-        Adi(AdiEncoder::new(unsafe {AdiPort::new(1, None)}, unsafe {AdiPort::new(2, None)})),
-        OmniWheel::Omni275,
-        TrackingWheelOrientation::Vertical(QLength::from_inches(-4.0)),
-        Some(1.0),
-    );
-    let right = TrackingWheel::new(
-        Smart(RotationSensor::new(unsafe {SmartPort::new(2)}, Direction::Forward)),
-        OmniWheel::Omni275,
-        TrackingWheelOrientation::Vertical(QLength::from_inches(4.0)),
-        Some(1.0),
-    );
-    let side = TrackingWheel::new(
-        Smart(RotationSensor::new(unsafe {SmartPort::new(4)}, Direction::Forward)),
-        OmniWheel::Omni275,
-        TrackingWheelOrientation::Horizontal(QLength::from_inches(2.0)),
-        Some(1.0),
-    );
-    let imu = Some(InertialSensor::new(unsafe {SmartPort::new(5)}));
-    // Start tracking
-    let rig = TrackingRig::new(
-        Pose::new(0.0, 0.0, QAngle::from_degrees(0.0)),
-        [left, right],
-        [side],
-        imu,
-    );
-    loop {
-        let pose = rig.pose();
-        let (x, y) = pose.position();
-        let heading = pose.heading().as_degrees();
-        println!("x={:.3}, y={:.3}, heading={:.1}", x, y, heading);
-        sleep(Duration::from_millis(50)).await;
-    }
 }

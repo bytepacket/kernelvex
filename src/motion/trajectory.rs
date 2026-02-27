@@ -1,5 +1,5 @@
 //! Trajectory representation and sampling utilities.
-
+// TODO: add QTime instead of normal f64 type
 use crate::odom::pose::Pose;
 use crate::util::si::{QAngle, QTime, Vector2};
 
@@ -143,10 +143,10 @@ fn lerp_angle(a: QAngle, b: QAngle, t: f64) -> QAngle {
 }
 
 fn interpolate_pose(a: Pose, b: Pose, t: f64) -> Pose {
-    let (ax, ay) = a.position();
-    let (bx, by) = b.position();
+    let (ax, ay) = (a.position().x, a.position().y);
+    let (bx, by) = (b.position().x, b.position().y);
     let heading = lerp_angle(a.heading(), b.heading(), t);
-    Pose::new(lerp(ax, bx, t), lerp(ay, by, t), heading)
+    Pose::new(Vector2::<f64>::new(lerp(ax, bx, t), lerp(ay, by, t)), heading)
 }
 
 /// A cubic Bézier curve defined by start, end, and two control points.
@@ -159,6 +159,8 @@ pub struct Bezier {
 }
 
 impl Bezier {
+
+    const T_MAX: f64 = 1.0;
     #[inline]
     pub const fn new(
         start: Vector2<f64>,
@@ -176,6 +178,11 @@ impl Bezier {
 
     #[inline]
     pub fn point(&self, t: f64) -> Vector2<f64> {
+
+        {
+            assert!(t <= Self::T_MAX, "time cannot exceed 1");
+        }
+
         let u = 1.0 - t;
         let tt = t * t;
         let uu = u * u;
@@ -188,6 +195,11 @@ impl Bezier {
 
     #[inline]
     pub fn tangent(&self, t: f64) -> Vector2<f64> {
+
+        {
+            assert!(t <= Self::T_MAX, "time cannot exceed 1");
+        }
+
         let u = 1.0 - t;
         let tt = t * t;
         let uu = u * u;
@@ -199,8 +211,32 @@ impl Bezier {
 
     #[inline]
     pub fn heading(&self, t: f64) -> QAngle {
+
+        {
+            assert!(t <= Self::T_MAX, "time cannot exceed 1");
+        }
+
         let tan = self.tangent(t);
         QAngle::from_radians(libm::atan2(tan.y, tan.x))
+    }
+
+    pub fn derivative(&self, t: f64) -> Vector2<f64> {
+
+        {
+            assert!(t <= Self::T_MAX, "time cannot exceed 1");
+        }
+
+        let u = 1.0 - t;
+
+        let q0 = (self.control1 - self.start) * 3.0;
+        let q1 = (self.control2 - self.control1) * 3.0;
+        let q2 = (self.end - self.control2) * 3.0;
+
+        let velocity = q0 * (u * u)
+            + q1 * (2.0 * u * t)
+            + q2 * (t * t);
+
+        velocity
     }
 
     pub fn to_trajectory(
@@ -223,7 +259,7 @@ impl Bezier {
             let heading = self.heading(t);
             headings.push(heading);
             points.push(TrajectoryPoint::new(
-                Pose::new(pos.x, pos.y, heading),
+                Pose::new(pos, heading),
                 linear_velocity,
                 0.0,
                 QTime::from_sec(dt * i as f64),
@@ -246,4 +282,3 @@ impl Bezier {
         Trajectory::from_points(points)
     }
 }
-

@@ -115,7 +115,7 @@ impl Pid {
     /// # Returns
     ///
     /// A tuple of `(kp, ki, kd)` gain values.
-    pub fn values(&self) -> (f64, f64, f64) {
+    pub const fn values(&self) -> (f64, f64, f64) {
         (self.kp, self.ki, self.kd)
     }
 
@@ -217,7 +217,7 @@ impl Pid {
     /// // Tune the PID during runtime
     /// pid.set_gains(1.5, 0.02, 0.15);
     /// ```
-    pub fn set_gains(self, kp: f64, ki: f64, kd: f64) -> Self {
+    pub const fn set_gains(self, kp: f64, ki: f64, kd: f64) -> Self {
         Self {
             kp,
             ki,
@@ -233,15 +233,21 @@ impl Pid {
         }
     }
 
+    pub const fn set_kp(&mut self, kp: f64) { self.kp = kp }
+
+    pub const fn set_ki(&mut self, ki: f64) { self.ki = ki }
+
+    pub const fn set_kd(&mut self, kd: f64) { self.kd = kd }
+
     /// Set output saturation limits.
-    pub fn with_output_limits(mut self, min: f64, max: f64) -> Self {
+    pub const fn with_output_limits(mut self, min: f64, max: f64) -> Self {
         self.min = min;
         self.max = max;
         self
     }
 
     /// Set integral term limits (anti-windup).
-    pub fn with_integral_limits(mut self, min: f64, max: f64) -> Self {
+    pub const fn with_integral_limits(mut self, min: f64, max: f64) -> Self {
         self.imin = min;
         self.imax = max;
         self
@@ -318,7 +324,7 @@ impl AngularPid {
     /// # Returns
     ///
     /// A tuple of `(kp, ki, kd)` gain values.
-    pub fn values(&self) -> (f64, f64, f64) {
+    pub const fn values(&self) -> (f64, f64, f64) {
         (self.kp, self.ki, self.kd)
     }
 
@@ -420,7 +426,7 @@ impl AngularPid {
     /// // Tune the PID during runtime
     /// pid.set_gains(1.5, 0.02, 0.15);
     /// ```
-    pub fn set_gains(self, kp: f64, ki: f64, kd: f64) -> Self {
+    pub const fn set_gains(self, kp: f64, ki: f64, kd: f64) -> Self {
         Self {
             kp,
             ki,
@@ -437,16 +443,22 @@ impl AngularPid {
     }
 
     /// Set output saturation limits.
-    pub fn with_output_limits(mut self, min: QAngle, max: QAngle) -> Self {
+    pub const fn with_output_limits(mut self, min: QAngle, max: QAngle) -> Self {
         self.min = min;
         self.max = max;
         self
     }
 
     /// Set integral term limits (anti-windup).
-    pub fn with_integral_limits(mut self, min: QAngle, max: QAngle) -> Self {
+    pub const fn with_integral_limits(mut self, min: QAngle, max: QAngle) -> Self {
         self.imin = min;
         self.imax = max;
         self
     }
+
+    pub const fn set_kp(&mut self, kp: f64) { self.kp = kp }
+
+    pub const fn set_ki(&mut self, ki: f64) { self.ki = ki }
+
+    pub const fn set_kd(&mut self, kd: f64) { self.kd = kd }
 }

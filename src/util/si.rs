@@ -331,6 +331,15 @@ where
     }
 }
 
+impl Default for Vector2<f64> {
+    fn default() -> Self {
+        Self {
+            x: 0.,
+            y: 0.,
+        }
+    }
+}
+
 impl<L: Integer, T: Integer, A: Integer> std::ops::Add for RQuantity<L, T, A> {
     type Output = Self;
 
