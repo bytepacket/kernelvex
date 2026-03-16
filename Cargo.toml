@@ -1,11 +1,14 @@
 [package]
 name = "kernelvex"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 license = "MIT"
 description = "VEX Controls library"
 repository = "https://github.com/bytepacket/kernelvex/"
 homepage = "https://www.2381.ca"
+
+[dev-dependencies]
+vexide = { version = "0.8.0", features = ["full", "default-sdk"] }
 
 [dependencies]
 libm = "0.2.16"

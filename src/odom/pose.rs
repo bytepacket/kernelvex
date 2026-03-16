@@ -127,7 +127,7 @@ impl Pose {
         Pose {
             position: Matrix3::new(
                 QAngle::from_radians(0.).cos(),
-                QAngle::from_radians(0.).sin(),
+                -QAngle::from_radians(0.).sin(),
                 0.0,
                 QAngle::from_radians(0.).sin(),
                 QAngle::from_radians(0.).cos(),

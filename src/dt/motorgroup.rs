@@ -1,3 +1,36 @@
+//! Motor group for controlling multiple motors as a single unit.
+//!
+//! This module provides [`MotorGroup`], which wraps multiple motors and applies
+//! operations to all of them simultaneously. This is essential for drivetrains
+//! where multiple motors drive the same side.
+//!
+//! # Thread Safety
+//!
+//! `MotorGroup` uses `Arc<Mutex<...>>` for shared ownership, allowing multiple
+//! references to the same motor group across async tasks.
+//!
+//! # Error Handling
+//!
+//! Operations return `Result<(), GroupErrors>` where `GroupErrors` is a collection
+//! of individual motor port errors. If any motor fails, the errors are collected
+//! but the operation continues for the remaining motors.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use kernelvex::MotorGroup;
+//! use vexide_devices::smart::motor::Motor;
+//!
+//! // Create a motor group with 2 motors
+//! let mut group = MotorGroup::new([motor1, motor2]);
+//!
+//! // Set voltage for all motors
+//! group.set_voltage(6.0).await?;
+//!
+//! // Get average velocity
+//! let rpm = group.velocity().await?;
+//! ```
+
 #![allow(dead_code)]
 // TODO: remove results with warns (no errors)
 
@@ -13,35 +46,45 @@ use vexide_devices::{
 
 use heapless::Vec;
 
-/// A group of motors that can be controlled as odom single unit.
+/// A group of motors that can be controlled as a single unit.
 ///
-/// `MotorGroup` wraps odom fixed-size array of motors with shared ownership,
+/// `MotorGroup` wraps a fixed-size array of motors with shared ownership,
 /// allowing multiple references to the same motor group. All operations
 /// are applied to every motor in the group, and errors are collected.
 ///
-/// # Type Parameters
+/// # Capacity
 ///
-/// * `N` - The number of motors in the group (compile-time constant)
+/// The internal storage supports up to 6 motors per group, which covers
+/// most VEX robotics applications.
 ///
-/// # Examples
+/// # Example
 ///
 /// ```no_run
-/// # use std::rc::Rc;
-/// # use std::cell::RefCell;
-/// # use vexide_devices::smart::motor::Motor;
-/// # use kernelvex::dt::motorgroup::MotorGroup;
-/// // Create odom motor group with shared ownership
-/// // let motors = Rc::new(RefCell::new([motor1, motor2]));
-/// // let mut group = MotorGroup::new(motors);
-/// // group.set_voltage(6.0).unwrap();
+/// let mut group = MotorGroup::new([motor1, motor2, motor3]);
+///
+/// // All motors receive 8V
+/// group.set_voltage(8.0).await?;
+///
+/// // Get average velocity across all motors
+/// let avg_rpm = group.velocity().await?;
 /// ```
 #[derive(Clone)]
 pub struct MotorGroup {
+    /// Thread-safe storage for up to 6 motors.
     motors: Arc<Mutex<Vec<Motor, 6>>>,
 }
 
 impl MotorGroup {
-    /// Runs a function on a specific motor
+    /// Runs a function on a specific motor by index.
+    ///
+    /// # Arguments
+    ///
+    /// * `index` - The motor index (0-based)
+    /// * `f` - Function to execute on the motor
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
     pub async fn use_at<F, R>(&self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut Motor) -> R
@@ -50,16 +93,26 @@ impl MotorGroup {
         f(&mut guard[index])
     }
 
-    /// Returns size of `Motor` Array
+    /// Returns the number of motors in the group.
     pub async fn count(&self) -> usize {
         self.motors.lock().await.len()
     }
 
-    /// Creates new motor group from motor array.
+    /// Creates a new motor group from an array of motors.
     ///
     /// # Arguments
     ///
-    /// * `motors` - Array of motors
+    /// * `motors` - Array of motors (up to 6)
+    ///
+    /// # Type Parameters
+    ///
+    /// * `N` - Number of motors in the array (compile-time constant)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// let group = MotorGroup::new([motor1, motor2]);
+    /// ```
     pub fn new<const N: usize>(motors: [Motor; N]) -> Self {
         MotorGroup { motors: Arc::new(Mutex::new(Vec::from(motors))) }
     }
@@ -68,7 +121,12 @@ impl MotorGroup {
     ///
     /// # Arguments
     ///
-    /// * `volts` - Voltage to apply (typically -12.0 to 12.0)
+    /// * `volts` - Voltage to apply (typically -12.0 to 12.0 for V5 motors)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_voltage(&mut self, volts: f64) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -82,11 +140,18 @@ impl MotorGroup {
         }
     }
 
-    /// Sets the velocity for all motors in the group.
+    /// Sets the velocity target for all motors in the group.
+    ///
+    /// Uses the motor's internal velocity PID controller.
     ///
     /// # Arguments
     ///
     /// * `rpm` - Target velocity in RPM
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_velocity(&mut self, rpm: i32) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -101,6 +166,15 @@ impl MotorGroup {
     }
 
     /// Applies the given brake mode to all motors.
+    ///
+    /// # Arguments
+    ///
+    /// * `brake` - The brake mode (Coast, Brake, or Hold)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn brake(&mut self, brake: BrakeMode) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -115,6 +189,15 @@ impl MotorGroup {
     }
 
     /// Sets the direction for all motors in the group.
+    ///
+    /// # Arguments
+    ///
+    /// * `direction` - Forward or Reverse
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_direction(&mut self, direction: Direction) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -128,7 +211,19 @@ impl MotorGroup {
         }
     }
 
-    /// Sets odom position target for all motors with the given velocity.
+    /// Sets a position target for all motors with the given velocity.
+    ///
+    /// Uses the motor's internal position PID controller.
+    ///
+    /// # Arguments
+    ///
+    /// * `position` - Target position as an angle
+    /// * `velocity` - Maximum velocity in RPM
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_position_target(
         &mut self,
         position: QAngle,
@@ -146,7 +241,18 @@ impl MotorGroup {
         }
     }
 
-    /// Sets odom profiled velocity target for all motors.
+    /// Sets a profiled velocity target for all motors.
+    ///
+    /// Uses the motor's internal motion profiling.
+    ///
+    /// # Arguments
+    ///
+    /// * `velocity` - Target velocity in RPM
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_profiled_velocity(&mut self, velocity: i32) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -160,7 +266,16 @@ impl MotorGroup {
         }
     }
 
-    /// Sets odom motor control target for all motors.
+    /// Sets a motor control target for all motors.
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - The motor control target (voltage, velocity, or position)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_target(&mut self, target: MotorControl) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -174,7 +289,16 @@ impl MotorGroup {
         }
     }
 
-    /// Sets the position for all motors.
+    /// Sets the encoder position for all motors.
+    ///
+    /// # Arguments
+    ///
+    /// * `position` - The position to set as an angle
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors set successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn set_position(&mut self, position: QAngle) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         let ret: GroupErrors = guard
@@ -188,7 +312,12 @@ impl MotorGroup {
         }
     }
 
-    /// Resets the position of all motors to zero.
+    /// Resets the encoder position of all motors to zero.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - All motors reset successfully
+    /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn reset_position(&mut self) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
         
@@ -203,6 +332,12 @@ impl MotorGroup {
         }
     }
 
+    /// Returns the average velocity of all motors in the group.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(i32)` - Average velocity in RPM
+    /// * `Err(GroupErrors)` - One or more motors failed to read
     pub async fn velocity(&self) -> Result<i32, GroupErrors> {
         let guard = self.motors.lock().await;
         let mut errors = GroupErrors::new();

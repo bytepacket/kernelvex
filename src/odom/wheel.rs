@@ -3,6 +3,27 @@
 //! This module provides support for tracking wheels used in odometry calculations,
 //! allowing robots to track their position and movement using wheel encoders.
 //!
+//! # Overview
+//!
+//! Tracking wheels are unpowered wheels with encoders that measure distance traveled.
+//! By using multiple tracking wheels at known offsets from the robot center, the
+//! robot's position and heading can be calculated.
+//!
+//! # Components
+//!
+//! - [`TrackingWheel`]: A single wheel with encoder for distance measurement
+//! - [`TrackingRig`]: A complete odometry system with multiple wheels and optional IMU
+//! - [`OmniWheel`]: Enum of standard VEX wheel sizes
+//! - [`Encoder`]: Either ADI quadrature or V5 rotation sensor
+//!
+//! # Tracking Rig
+//!
+//! The [`TrackingRig`] runs a background task that continuously updates the robot's
+//! pose estimate. It supports:
+//! - IMU for heading (preferred)
+//! - Two parallel forward wheels for heading (fallback)
+//! - Horizontal wheels for lateral movement detection
+//!
 //! # Examples
 //!
 //! ```no_run
@@ -77,7 +98,7 @@ impl OmniWheel {
     ///
     /// The wheel diameter as [`QLength`].
     #[allow(unused)]
-    fn size(&self) -> QLength {
+    pub(crate) fn size(&self) -> QLength {
         match *self {
             OmniWheel::Omni275 => QLength::from_inches(2.75),
             OmniWheel::Omni325 => QLength::from_inches(3.25),
@@ -162,6 +183,15 @@ impl TrackingWheel {
         }
     }
 
+    /// Returns the perpendicular offset distance from the robot's center.
+    ///
+    /// This is the distance from the robot's center of rotation to the wheel,
+    /// measured perpendicular to the wheel's rolling direction.
+    ///
+    /// # Returns
+    ///
+    /// The offset distance as [`QLength`]. Positive values indicate right side
+    /// or forward offset, negative values indicate left side or backward offset.
     pub const fn offset(&self) -> QLength {
         match self.dist {
             TrackingWheelOrientation::Vertical(v) => v,
@@ -169,6 +199,25 @@ impl TrackingWheel {
         }
     }
 
+    /// Returns the total distance traveled by this wheel since the last reset.
+    ///
+    /// Calculates distance using the formula:
+    /// ```text
+    /// distance = (circumference * rotations_in_radians) / gearing
+    /// ```
+    ///
+    /// Where:
+    /// - `circumference = wheel_diameter * π`
+    /// - `rotations_in_radians` is the encoder position converted to radians
+    /// - `gearing` is the gear ratio between encoder and wheel
+    ///
+    /// # Returns
+    ///
+    /// The total distance traveled as [`QLength`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the encoder position cannot be read.
     pub fn distance(&self) -> QLength {
         let circumference = self.wheel.size() * std::f64::consts::PI;
 
@@ -188,6 +237,19 @@ impl TrackingWheel {
     }
 
     /// Returns the distance traveled since the last call to `delta`.
+    ///
+    /// This method tracks the cumulative distance internally and returns
+    /// the difference from the previous reading. Useful for calculating
+    /// incremental position changes in odometry loops.
+    ///
+    /// # Returns
+    ///
+    /// The distance traveled since the last call as [`QLength`].
+    ///
+    /// # Note
+    ///
+    /// The first call after construction or [`reset`](Self::reset) will return
+    /// the total distance, as the previous value is initialized to zero.
     pub fn delta(&mut self) -> QLength {
         let previous = self.total;
         let current = self.distance();
@@ -195,6 +257,13 @@ impl TrackingWheel {
         current - previous
     }
 
+    /// Resets the encoder position and internal tracking state to zero.
+    ///
+    /// This clears both the encoder's position register and the internal
+    /// cumulative distance tracker used by [`delta`](Self::delta).
+    ///
+    /// Call this method when repositioning the robot or starting a new
+    /// autonomous routine.
     pub fn reset(&mut self) {
         self.total = Default::default();
         match &mut self.encoder {
@@ -207,6 +276,14 @@ impl TrackingWheel {
         }
     }
 
+    /// Sets the encoder position to a specific angle.
+    ///
+    /// This directly sets the encoder's position register without affecting
+    /// the internal tracking state. Useful for calibration or synchronization.
+    ///
+    /// # Arguments
+    ///
+    /// * `position` - The angle to set the encoder position to.
     pub fn set(&mut self, position: QAngle) {
         match &mut self.encoder {
             Adi(encoder) => {
@@ -218,15 +295,82 @@ impl TrackingWheel {
         }
     }
 
+    /// Returns the orientation of this tracking wheel.
+    ///
+    /// The orientation is determined by the sign of the offset distance:
+    /// - Positive offset → [`Orientation::Right`]
+    /// - Negative offset → [`Orientation::Left`]
+    ///
+    /// # Returns
+    ///
+    /// The [`Orientation`] of this wheel (Left or Right).
     pub const fn orientation(&self) -> Orientation {
         self.orientation
     }
 
+    /// Returns the tracking wheel orientation (vertical or horizontal).
+    ///
+    /// Vertical wheels measure forward/backward movement, while horizontal
+    /// wheels measure lateral (sideways) movement.
+    ///
+    /// # Returns
+    ///
+    /// The [`TrackingWheelOrientation`] including the offset distance.
     pub const fn direction(&self) -> TrackingWheelOrientation {
         self.dist
     }
 }
 
+/// A complete odometry tracking system with multiple wheels and optional IMU.
+///
+/// `TrackingRig` runs a background task that continuously updates the robot's
+/// pose estimate using tracking wheel data and optional IMU heading. It supports:
+///
+/// - **IMU heading** (preferred): Uses an inertial sensor for accurate heading
+/// - **Wheel-based heading** (fallback): Uses two parallel forward wheels
+/// - **Horizontal wheels**: For detecting lateral (sideways) movement
+///
+/// # Architecture
+///
+/// The tracking rig spawns an asynchronous task that runs at approximately 100Hz
+/// (10ms intervals). This task:
+/// 1. Reads encoder positions from all tracking wheels
+/// 2. Computes heading from IMU or wheel differential
+/// 3. Calculates local displacement using arc-based odometry
+/// 4. Transforms local displacement to field coordinates
+/// 5. Updates the shared pose estimate
+///
+/// # Odometry Algorithm
+///
+/// The algorithm uses arc-based position tracking:
+/// - When turning, the robot follows an arc rather than a straight line
+/// - The chord length formula `2 * sin(Δθ/2)` accounts for this arc
+/// - Local coordinates are rotated by the average heading to get field coordinates
+///
+/// # Example
+///
+/// ```no_run
+/// use kernelvex::odom::wheel::{TrackingRig, TrackingWheel, Encoder, OmniWheel};
+/// use kernelvex::odom::pose::Pose;
+/// use kernelvex::util::utils::TrackingWheelOrientation;
+/// use kernelvex::util::si::QLength;
+///
+/// // Create tracking wheels
+/// // let left_wheel = TrackingWheel::new(...);
+/// // let right_wheel = TrackingWheel::new(...);
+/// // let horizontal_wheel = TrackingWheel::new(...);
+///
+/// // Create tracking rig with IMU
+/// // let rig = TrackingRig::new(
+/// //     Pose::default(),
+/// //     [horizontal_wheel],  // horizontal wheels
+/// //     [left_wheel, right_wheel],  // vertical wheels
+/// //     Some(imu),
+/// // );
+///
+/// // Get current pose
+/// // let pose = rig.pose();
+/// ```
 // based off evian
 pub struct TrackingRig {
     data: Rc<RefCell<TrackingData>>,
@@ -234,6 +378,32 @@ pub struct TrackingRig {
 }
 
 impl TrackingRig {
+    /// Creates a new tracking rig and starts the background odometry task.
+    ///
+    /// # Arguments
+    ///
+    /// * `origin` - The initial pose of the robot (position and heading)
+    /// * `horizontal` - Array of horizontal tracking wheels (measure lateral movement).
+    ///                  Maximum of 2 wheels allowed.
+    /// * `vertical` - Array of vertical tracking wheels (measure forward/backward movement).
+    ///                Maximum of 2 wheels allowed.
+    /// * `imu` - Optional inertial sensor for heading. If `None`, two parallel forward
+    ///           wheels are required to compute heading from wheel differential.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `N` - Number of horizontal tracking wheels (0-2)
+    /// * `U` - Number of vertical tracking wheels (0-2)
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - More than 2 horizontal or vertical tracking wheels are provided
+    /// - No IMU is provided AND no pair of parallel forward wheels exists
+    ///
+    /// # Returns
+    ///
+    /// A new `TrackingRig` that immediately begins updating pose estimates.
     #[inline]
 
     pub fn new<const N: usize, const U: usize>(
@@ -304,20 +474,74 @@ impl TrackingRig {
     }
 
     /// Returns the latest pose estimate.
+    ///
+    /// The pose is continuously updated by the background task at approximately
+    /// 100Hz. This method returns the most recent estimate.
+    ///
+    /// # Returns
+    ///
+    /// The current [`Pose`] estimate (position and heading).
     pub fn pose(&self) -> Pose {
         self.data.borrow().pose
     }
 
     /// Returns the latest linear velocity estimate in meters per second.
+    ///
+    /// Computed from the change in forward wheel travel over time.
+    ///
+    /// # Returns
+    ///
+    /// Linear velocity in m/s. Positive values indicate forward movement.
     pub fn linear_velocity(&self) -> f64 {
         self.data.borrow().linear_velocity
     }
 
     /// Returns the latest angular velocity estimate in radians per second.
+    ///
+    /// If an IMU is available, uses the gyroscope's Z-axis rate directly.
+    /// Otherwise, computes from the change in heading over time.
+    ///
+    /// # Returns
+    ///
+    /// Angular velocity in rad/s. Positive values indicate counter-clockwise rotation.
     pub fn angular_velocity(&self) -> f64 {
         self.data.borrow().angular_velocity
     }
 
+    /// Background odometry task that continuously updates the pose estimate.
+    ///
+    /// This async task runs in a loop at approximately 100Hz and:
+    /// 1. Reads current positions from all tracking wheels
+    /// 2. Computes heading change from IMU or wheel differential
+    /// 3. Calculates local displacement using arc-based odometry
+    /// 4. Transforms to field coordinates and updates the shared pose
+    ///
+    /// # Arc-Based Odometry
+    ///
+    /// When the robot turns, it follows an arc rather than a straight line.
+    /// The algorithm uses the chord length formula:
+    /// ```text
+    /// unit_chord = 2 * sin(Δθ / 2)
+    /// ```
+    ///
+    /// Local displacement is computed as:
+    /// ```text
+    /// local_x = unit_chord * (Δforward / Δθ + offset)  // forward direction
+    /// local_y = unit_chord * (Δsideways / Δθ + offset) // lateral direction
+    /// ```
+    ///
+    /// When `Δθ ≈ 0`, the robot moved straight and the formula simplifies to
+    /// just using the raw delta values.
+    ///
+    /// # Field Coordinate Transformation
+    ///
+    /// Local coordinates are transformed to field coordinates using:
+    /// ```text
+    /// dx_field = local_x * cos(avg_heading) - local_y * sin(avg_heading)
+    /// dy_field = local_x * sin(avg_heading) + local_y * cos(avg_heading)
+    /// ```
+    ///
+    /// Where `avg_heading` is the midpoint heading during the movement.
     #[allow(clippy::too_many_arguments)]
     async fn task(
         forward: &mut [TrackingWheel],
@@ -455,23 +679,56 @@ impl TrackingRig {
     }
 }
 
+/// Internal state for the tracking rig's background task.
+///
+/// This structure is shared between the main thread and the odometry task
+/// via `Rc<RefCell<TrackingData>>`.
 #[derive(Debug, Clone, Copy)]
 struct TrackingData {
+    /// Current pose estimate (position and heading)
     pose: Pose,
+    /// Raw heading from IMU or wheel differential (without offset)
     raw_heading: QAngle,
+    /// Offset applied to raw heading to get final heading
     heading_offset: QAngle,
+    /// Cumulative forward travel distance (meters)
     forward_travel: f64,
+    /// Current linear velocity (m/s)
     linear_velocity: f64,
+    /// Current angular velocity (rad/s)
     angular_velocity: f64,
 }
 
+/// Error type for heading computation failures.
+///
+/// Used internally to handle fallback from IMU to wheel-based heading.
 #[derive(Debug, Clone, Copy)]
 enum HeadingError {
+    /// IMU read failed; contains optional fallback heading from wheels
     Imu(Option<QAngle>),
+    /// Rotation sensor read failed
     Rotary,
 }
 
 
+/// Finds indices of two parallel forward wheels suitable for heading calculation.
+///
+/// Two wheels are considered "parallel" if their offsets are approximately
+/// symmetric about the robot center (i.e., `offset_i + offset_j ≈ 0`).
+///
+/// # Arguments
+///
+/// * `forward` - Slice of forward-facing tracking wheels
+///
+/// # Returns
+///
+/// `Some((left_index, right_index))` if a parallel pair is found, where the
+/// left wheel has the smaller (more negative) offset. Returns `None` if no
+/// suitable pair exists.
+///
+/// # Tolerance
+///
+/// Uses a tolerance of 0.5 meters for symmetry check.
 fn find_parallel_forward_indices(forward: &Vec<TrackingWheel, 2>) -> Option<(usize, usize)> {
     const OFFSET_TOLERANCE: f64 = 0.5;
     let n = forward.len();
@@ -492,6 +749,27 @@ fn find_parallel_forward_indices(forward: &Vec<TrackingWheel, 2>) -> Option<(usi
     None
 }
 
+/// Computes the robot's raw heading from available sensors.
+///
+/// Attempts to read heading in the following priority order:
+/// 1. IMU heading (if available and working)
+/// 2. Wheel differential heading (if parallel wheels exist)
+///
+/// # Arguments
+///
+/// * `imu` - Optional reference to an inertial sensor
+/// * `parallel_indices` - Optional indices of parallel forward wheels
+/// * `forward` - Mutable slice of forward tracking wheels
+///
+/// # Returns
+///
+/// * `Ok(heading)` - Successfully computed heading
+/// * `Err(HeadingError::Imu(fallback))` - IMU failed; contains optional wheel-based fallback
+/// * `Err(HeadingError::Rotary)` - Rotation sensor failed
+///
+/// # Note
+///
+/// IMU heading is negated to match the convention (positive = counter-clockwise).
 fn compute_raw_heading (
     imu: Option<&InertialSensor>,
     parallel_indices: Option<&(usize, usize)>,
@@ -518,6 +796,25 @@ fn compute_raw_heading (
     Err(HeadingError::Imu(None))
 }
 
+/// Computes heading from the differential of two parallel tracking wheels.
+///
+/// Uses the formula:
+/// ```text
+/// heading = (right_travel - left_travel) / track_width
+/// ```
+///
+/// Where `track_width` is the distance between the two wheels.
+///
+/// # Arguments
+///
+/// * `forward` - Mutable slice of forward tracking wheels
+/// * `left_index` - Index of the left wheel (negative offset)
+/// * `right_index` - Index of the right wheel (positive offset)
+///
+/// # Returns
+///
+/// `Some(heading)` if computation succeeds, `None` if indices are invalid
+/// or track width is zero.
 fn wheel_heading (
     forward: &mut [TrackingWheel],
     left_index: usize,

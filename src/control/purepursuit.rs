@@ -1,17 +1,78 @@
 //! Pure pursuit controller for trajectory tracking.
+//!
+//! This module implements the pure pursuit algorithm, a geometric path tracking
+//! controller that steers the robot toward a lookahead point on the trajectory.
+//!
+//! # Overview
+//!
+//! Pure pursuit works by:
+//! 1. Finding a lookahead point on the trajectory at a fixed distance ahead
+//! 2. Computing the curvature needed to reach that point
+//! 3. Converting curvature to wheel speeds
+//!
+//! The lookahead distance determines tracking behavior:
+//! - **Shorter lookahead**: Tighter tracking but more oscillation
+//! - **Longer lookahead**: Smoother tracking but may cut corners
+//!
+//! # Algorithm
+//!
+//! The lookahead point is found by intersecting a circle (centered at the robot)
+//! with the trajectory. The curvature to reach this point is:
+//!
+//! ```text
+//! curvature = 2 * y_robot / lookahead^2
+//! ```
+//!
+//! Where `y_robot` is the lateral offset of the lookahead point in the robot frame.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use kernelvex::{PurePursuit, Trajectory, Pose};
+//!
+//! let controller = PurePursuit::new(trajectory, 0.3); // 30cm lookahead
+//!
+//! // Find lookahead point
+//! if let Some(target) = controller.intersect(current_pose) {
+//!     let curvature = controller.curvature(current_pose, target.pose.position());
+//!     // Convert curvature to wheel speeds
+//! }
+//! ```
 
 use crate::motion::trajectory::{Trajectory, TrajectoryPoint};
 use crate::odom::pose::Pose;
 use crate::util::si::Vector2;
 
+/// Pure pursuit controller for path following.
+///
+/// Pure pursuit is a geometric controller that steers toward a lookahead point
+/// on the trajectory. It's simpler than RAMSETE but works well for smooth paths.
+///
+/// # Fields
+///
+/// - `trajectory`: The path to follow
+/// - `lookahead`: Distance ahead to look for the target point (meters)
 #[derive(Debug, Clone)]
 pub struct PurePursuit {
+    /// The trajectory to follow.
     trajectory: Trajectory,
+    /// Lookahead distance in meters.
     lookahead: f64,
 }
 
 impl PurePursuit {
     /// Creates a pure pursuit controller with the given trajectory and lookahead distance.
+    ///
+    /// # Arguments
+    ///
+    /// * `trajectory` - The path to follow
+    /// * `lookahead` - Distance ahead to look for target point (meters)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// let controller = PurePursuit::new(trajectory, 0.3); // 30cm lookahead
+    /// ```
     #[inline]
     pub fn new(trajectory: Trajectory, lookahead: f64) -> Self {
         Self {
@@ -27,6 +88,9 @@ impl PurePursuit {
     }
 
     /// Sets a new lookahead distance in meters.
+    ///
+    /// Adjust during operation to trade off between tracking accuracy
+    /// and smoothness.
     #[inline]
     pub fn set_lookahead(&mut self, lookahead: f64) {
         self.lookahead = lookahead;
@@ -39,6 +103,26 @@ impl PurePursuit {
     }
 
     /// Finds the lookahead point on the trajectory using circle intersection.
+    ///
+    /// Draws a circle of radius `lookahead` centered at the robot's position
+    /// and finds where it intersects the trajectory. Returns the furthest
+    /// intersection point along the path.
+    ///
+    /// # Arguments
+    ///
+    /// * `pose` - The robot's current pose
+    ///
+    /// # Returns
+    ///
+    /// The trajectory point at the lookahead intersection, or `None` if no
+    /// intersection is found (robot too far from path).
+    ///
+    /// # Algorithm
+    ///
+    /// For each trajectory segment:
+    /// 1. Solve circle-line intersection equations
+    /// 2. Filter intersections to valid segment range [0, 1]
+    /// 3. Keep the furthest point along the trajectory
     pub fn intersect(&self, pose: Pose) -> Option<TrajectoryPoint> {
         let points = self.trajectory.points();
         if points.len() < 2 {
@@ -84,8 +168,31 @@ impl PurePursuit {
         ))
     }
 
-    /// Computes curvature toward the lookahead point in the robot frame.
+    /// Computes the curvature needed to reach the lookahead point.
+    ///
+    /// # Arguments
+    ///
+    /// * `pose` - The robot's current pose
+    /// * `target` - The lookahead point position
+    ///
+    /// # Returns
+    ///
+    /// The curvature (1/radius) needed to reach the target. Positive curvature
+    /// turns left, negative turns right. Returns 0.0 if lookahead is too small
+    /// to avoid division by zero.
+    ///
+    /// # Formula
+    ///
+    /// ```text
+    /// curvature = 2 * y_robot / lookahead^2
+    /// ```
+    ///
+    /// Where `y_robot` is the lateral offset in the robot's coordinate frame.
     pub fn curvature(&self, pose: Pose, target: Vector2<f64>) -> f64 {
+        /// Minimum lookahead distance to avoid division by near-zero values.
+        /// 1mm is small enough to be effectively zero.
+        const LOOKAHEAD_EPSILON: f64 = 1e-3;
+
         let coords = pose.position();
         let dx = target.x - coords.x;
         let dy = target.y - coords.y;
@@ -95,7 +202,7 @@ impl PurePursuit {
         let sin_h = heading.sin();
 
         let y_r = -sin_h * dx + cos_h * dy;
-        if self.lookahead == 0.0 {
+        if self.lookahead.abs() < LOOKAHEAD_EPSILON {
             0.0
         } else {
             2.0 * y_r / (self.lookahead * self.lookahead)
@@ -103,6 +210,18 @@ impl PurePursuit {
     }
 }
 
+/// Finds circle-line segment intersections.
+///
+/// # Arguments
+///
+/// * `a` - Segment start point
+/// * `b` - Segment end point
+/// * `center` - Circle center
+/// * `radius` - Circle radius
+///
+/// # Returns
+///
+/// Vector of (t, point) tuples where t is the parameter [0, 1] along the segment.
 fn segment_circle_intersections(
     a: Vector2<f64>,
     b: Vector2<f64>,
@@ -136,7 +255,7 @@ fn segment_circle_intersections(
     results
 }
 
+/// Linear interpolation between two values.
 fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
 }
-

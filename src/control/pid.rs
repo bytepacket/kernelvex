@@ -233,11 +233,17 @@ impl Pid {
         }
     }
 
-    pub const fn set_kp(&mut self, kp: f64) { self.kp = kp }
+    pub const fn set_kp(&mut self, kp: f64) {
+        self.kp = kp
+    }
 
-    pub const fn set_ki(&mut self, ki: f64) { self.ki = ki }
+    pub const fn set_ki(&mut self, ki: f64) {
+        self.ki = ki
+    }
 
-    pub const fn set_kd(&mut self, kd: f64) { self.kd = kd }
+    pub const fn set_kd(&mut self, kd: f64) {
+        self.kd = kd
+    }
 
     /// Set output saturation limits.
     pub const fn with_output_limits(mut self, min: f64, max: f64) -> Self {
@@ -254,6 +260,23 @@ impl Pid {
     }
 }
 
+/// A PID controller for angular control with angle-aware error calculation.
+///
+/// Unlike the regular [`Pid`], this controller:
+/// - Accepts [`QAngle`] setpoints and measurements
+/// - Wraps error to the shortest path (handles 359° → 1° correctly)
+/// - Outputs voltage (f64), not angles
+///
+/// # Example
+///
+/// ```no_run
+/// # use kernelvex::{AngularPid, QAngle};
+/// let mut pid = AngularPid::new().set_gains(2.0, 0.0, 0.1);
+/// let output_volts = pid.calculate(
+///     QAngle::from_degrees(90.0),  // target heading
+///     QAngle::from_degrees(85.0),  // current heading
+/// );
+/// ```
 pub struct AngularPid {
     /// Proportional gain constant
     kp: f64,
@@ -261,26 +284,26 @@ pub struct AngularPid {
     ki: f64,
     /// Derivative gain constant
     kd: f64,
-    /// Accumulated integral term (sum of errors * time)
-    integral: QAngle,
-    /// Previous error value (for calculating derivative)
-    previous_error: QAngle,
+    /// Accumulated integral term (sum of errors * time) in radians
+    integral: f64,
+    /// Previous error value (for calculating derivative) in radians
+    previous_error: f64,
     /// Timestamp of controller since construction
     time: Instant,
     /// Timestamp of the last calculation
     last_time: f64,
-    /// Minimum output value
-    min: QAngle,
-    /// Maximum output value
-    max: QAngle,
-    /// Minimum integral value
-    imin: QAngle,
-    /// Maximum integral value
-    imax: QAngle,
+    /// Minimum output value (volts)
+    min: f64,
+    /// Maximum output value (volts)
+    max: f64,
+    /// Minimum integral value (radians)
+    imin: f64,
+    /// Maximum integral value (radians)
+    imax: f64,
 }
 
 impl AngularPid {
-    /// Creates odom new PID controller with the given gain constants.
+    /// Creates a new angular PID controller with zero gains.
     ///
     /// # Arguments
     ///
@@ -290,7 +313,7 @@ impl AngularPid {
     ///
     /// # Returns
     ///
-    /// A new `Pid` controller initialized with the given constants and zeroed state.
+    /// A new `AngularPid` controller initialized with zero gains and zeroed state.
     ///
     /// # Examples
     ///
@@ -308,14 +331,14 @@ impl AngularPid {
             kp: 0.,
             ki: 0.,
             kd: 0.,
-            integral: 0.0.into(),
-            previous_error: 0.0.into(),
+            integral: 0.0,
+            previous_error: 0.0,
             time: Instant::now(),
             last_time: 0.,
-            min: QAngle::from_radians(f64::NEG_INFINITY),
-            max: QAngle::from_radians(f64::INFINITY),
-            imin: QAngle::from_radians(f64::NEG_INFINITY),
-            imax: QAngle::from_radians(f64::INFINITY),
+            min: f64::NEG_INFINITY,
+            max: f64::INFINITY,
+            imin: f64::NEG_INFINITY,
+            imax: f64::INFINITY,
         }
     }
 
@@ -328,11 +351,13 @@ impl AngularPid {
         (self.kp, self.ki, self.kd)
     }
 
-    /// Calculates the PID output for the given error.
+    /// Calculates the PID output voltage for the given angular setpoint and measurement.
     ///
     /// This method should be called periodically in the control loop (typically
     /// every iteration or every few milliseconds). It calculates the time delta
     /// since the last call and updates the integral and derivative terms accordingly.
+    ///
+    /// The error is wrapped to [-π, π] to ensure the shortest rotation path is taken.
     ///
     /// # PID Formula
     ///
@@ -347,11 +372,12 @@ impl AngularPid {
     ///
     /// # Arguments
     ///
-    /// * `error` - The difference between the desired setpoint and current value
+    /// * `setpoint` - The target heading angle
+    /// * `actual` - The current heading angle
     ///
     /// # Returns
     ///
-    /// The PID controller output value that should be applied to the system.
+    /// The PID controller output voltage (f64) that should be applied to the motors.
     ///
     /// # Examples
     ///
@@ -361,13 +387,14 @@ impl AngularPid {
     ///
     /// // In your control loop:
     /// let setpoint = QAngle::from_degrees(100.0);
-    /// let current_value = QAngle::from_radians(95.0);
+    /// let current_value = QAngle::from_degrees(95.0);
     ///
-    /// let output = pid.calculate(setpoint, current_value);
-    /// // Apply `output` to your motor or actuator
+    /// let output_volts = pid.calculate(setpoint, current_value);
+    /// // Apply `output_volts` to your motor or actuator
     /// ```
-    pub fn calculate(&mut self, setpoint: QAngle, actual: QAngle) -> QAngle {
-        let error = (setpoint - actual).remainder(QAngle::TAU);
+    pub fn calculate(&mut self, setpoint: QAngle, actual: QAngle) -> f64 {
+        // Wrap error to [-π, π] for shortest path
+        let error = (setpoint - actual).remainder(QAngle::TAU).as_radians();
 
         let t = self.time.elapsed().as_secs_f64();
         let mut dt = t - self.last_time;
@@ -380,7 +407,7 @@ impl AngularPid {
 
         self.integral = (self.integral + error * dt).clamp(self.imin, self.imax);
 
-        let derivative = if dt > 0. { de / dt } else { 0.0.into() };
+        let derivative = if dt > 0. { de / dt } else { 0.0 };
 
         self.previous_error = error;
 
@@ -400,12 +427,12 @@ impl AngularPid {
     /// ```no_run
     /// # use kernelvex::AngularPid;
     /// let mut pid = AngularPid::new().set_gains(1.0, 0.01, 0.1);
-    /// // ... use pid for odom while ...
+    /// // ... use pid for a while ...
     /// pid.reset(); // Start fresh
     /// ```
     pub fn reset(&mut self) {
-        self.integral = 0.0.into();
-        self.previous_error = 0.0.into();
+        self.integral = 0.0;
+        self.previous_error = 0.0;
         self.time = Instant::now();
         self.last_time = 0.0;
     }
@@ -442,23 +469,39 @@ impl AngularPid {
         }
     }
 
-    /// Set output saturation limits.
-    pub const fn with_output_limits(mut self, min: QAngle, max: QAngle) -> Self {
+    /// Set output saturation limits (in volts).
+    ///
+    /// # Arguments
+    ///
+    /// * `min` - Minimum output voltage
+    /// * `max` - Maximum output voltage
+    pub const fn with_output_limits(mut self, min: f64, max: f64) -> Self {
         self.min = min;
         self.max = max;
         self
     }
 
-    /// Set integral term limits (anti-windup).
-    pub const fn with_integral_limits(mut self, min: QAngle, max: QAngle) -> Self {
+    /// Set integral term limits (anti-windup, in radians).
+    ///
+    /// # Arguments
+    ///
+    /// * `min` - Minimum integral accumulator value (radians)
+    /// * `max` - Maximum integral accumulator value (radians)
+    pub const fn with_integral_limits(mut self, min: f64, max: f64) -> Self {
         self.imin = min;
         self.imax = max;
         self
     }
 
-    pub const fn set_kp(&mut self, kp: f64) { self.kp = kp }
+    pub const fn set_kp(&mut self, kp: f64) {
+        self.kp = kp
+    }
 
-    pub const fn set_ki(&mut self, ki: f64) { self.ki = ki }
+    pub const fn set_ki(&mut self, ki: f64) {
+        self.ki = ki
+    }
 
-    pub const fn set_kd(&mut self, kd: f64) { self.kd = kd }
+    pub const fn set_kd(&mut self, kd: f64) {
+        self.kd = kd
+    }
 }
