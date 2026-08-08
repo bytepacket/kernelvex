@@ -14,7 +14,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::{OdomChassis, DifferentialDrive, Pose, QLength, QAngle};
 //!
 //! // Create chassis with builder pattern
@@ -34,20 +34,18 @@
 //! chassis.shoot_to_pose(target_pose).await?;
 //! ```
 
-use crate::control::feedforward::FeedForward;
-use crate::control::pid::{AngularPid, Pid};
-use crate::control::purepursuit::PurePursuit;
-use crate::control::ramsete::{RamseteController, RamseteReference};
-use crate::dt::model::Tank;
-use crate::motion::profile::TrapezoidalConstraints;
-use crate::motion::trajectory::Trajectory;
-use crate::util::si::{QAngle, QLength, QTime};
-use crate::util::utils::GroupErrors;
+use crate::FeedForward;
+use crate::GroupErrors;
+use crate::PurePursuit;
+use crate::Tank;
+use crate::{AngularPid, Pid};
 use crate::{DifferentialDrive, Drivetrain, Pose, TrackingRig};
+use crate::{QAngle, QLength, QTime};
+use crate::{RamseteController, RamseteReference};
+use crate::{Trajectory, TrapezoidalConstraints};
 use core::time::Duration;
+use vexide::smart::{imu::InertialSensor, motor::Motor};
 use vexide_async::time::sleep;
-use vexide_devices::smart::imu::InertialSensor;
-use vexide_devices::smart::motor::Motor;
 
 /// Unified error type for drive operations.
 ///
@@ -83,7 +81,7 @@ pub enum DriveError {
 ///
 /// Use the `with_*` methods to configure the chassis:
 ///
-/// ```no_run
+/// ```ignore
 /// let chassis = OdomChassis::new(dt, imu, tracking)
 ///     .with_linear_pid(Pid::new().with_kp(2.0))
 ///     .with_angular_pid(AngularPid::new().with_kp(1.5))
@@ -112,7 +110,7 @@ pub struct OdomChassis {
     /// RAMSETE controller for curved trajectory following.
     ramsete: RamseteController,
     /// Motion profile constraints (max velocity and acceleration).
-    constraints: TrapezoidalConstraints
+    constraints: TrapezoidalConstraints,
 }
 
 impl OdomChassis {
@@ -130,7 +128,7 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let chassis = OdomChassis::new(drivetrain, imu, Some(tracking_rig));
     /// ```
     pub fn new(dt: DifferentialDrive, imu: InertialSensor, tracking: Option<TrackingRig>) -> Self {
@@ -152,14 +150,13 @@ impl OdomChassis {
         imu: InertialSensor,
         tracking: Option<TrackingRig>,
     ) -> Self {
-        let linear_pid = Pid::new()
-            .with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
-        let left_pid = Pid::new()
-            .with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
-        let right_pid = Pid::new()
-            .with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
-        let angular_pid = AngularPid::new()
-            .with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+        let linear_pid =
+            Pid::new().with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+        let left_pid = Pid::new().with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+        let right_pid =
+            Pid::new().with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+        let angular_pid =
+            AngularPid::new().with_output_limits(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
         let ff = FeedForward::new();
         let ramsete = RamseteController::new();
 
@@ -174,7 +171,7 @@ impl OdomChassis {
             angular_pid,
             ff,
             ramsete,
-            constraints: TrapezoidalConstraints::new()
+            constraints: TrapezoidalConstraints::new(),
         }
     }
 
@@ -283,7 +280,6 @@ impl OdomChassis {
             .unwrap_or(QAngle::from_radians(0.0))
     }
 
-
     /// Drives the robot straight for a specified distance using a trapezoidal motion profile.
     ///
     /// This method generates a trapezoidal velocity profile and executes it using
@@ -301,7 +297,7 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// // Drive forward 1 meter
     /// chassis.shoot(QLength::from_meters(1.0)).await?;
     ///
@@ -336,12 +332,18 @@ impl OdomChassis {
             let volts = (volts_pid + volts_ff).clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
 
             let fraction = volts / Motor::V5_MAX_VOLTAGE;
-            self.dt.drive_tank(fraction, fraction).await.map_err(DriveError::Motor)?;
+            self.dt
+                .drive_tank(fraction, fraction)
+                .await
+                .map_err(DriveError::Motor)?;
 
             sleep(Duration::from_secs_f64(dt)).await;
         }
 
-        self.dt.drive_tank(0.0, 0.0).await.map_err(DriveError::Motor)?;
+        self.dt
+            .drive_tank(0.0, 0.0)
+            .await
+            .map_err(DriveError::Motor)?;
         Ok(())
     }
 
@@ -362,7 +364,7 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// // Turn to face 90 degrees
     /// chassis.turn(QAngle::from_degrees(90.0)).await?;
     ///
@@ -379,14 +381,20 @@ impl OdomChassis {
             let error = (target - current_heading).remainder(QAngle::TAU);
 
             if error.abs().as_radians() <= angle_tolerance.as_radians() {
-                self.dt.drive_tank(0.0, 0.0).await.map_err(DriveError::Motor)?;
+                self.dt
+                    .drive_tank(0.0, 0.0)
+                    .await
+                    .map_err(DriveError::Motor)?;
                 break;
             }
 
             let output = self.angular_pid.calculate(target, current_heading);
             let turn = (output / Motor::V5_MAX_VOLTAGE).clamp(-1.0, 1.0);
 
-            self.dt.drive_tank(turn, -turn).await.map_err(DriveError::Motor)?;
+            self.dt
+                .drive_tank(turn, -turn)
+                .await
+                .map_err(DriveError::Motor)?;
             sleep(Duration::from_millis(10)).await;
         }
 
@@ -416,12 +424,12 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let trajectory = Trajectory::from_cubic_bezier(
-    ///     Vector2::new(0.0, 0.0),
-    ///     Vector2::new(0.5, 0.0),
-    ///     Vector2::new(0.5, 1.0),
-    ///     Vector2::new(1.0, 1.0),
+    ///     Vec2::new(0.0, 0.0),
+    ///     Vec2::new(0.5, 0.0),
+    ///     Vec2::new(0.5, 1.0),
+    ///     Vec2::new(1.0, 1.0),
     ///     QTime::from_sec(3.0),
     ///     100,
     ///     0.5,
@@ -473,14 +481,8 @@ impl OdomChassis {
             let (meas_v, meas_w) = if let Some(tracking) = self.tracking.as_ref() {
                 (tracking.linear_velocity(), tracking.angular_velocity())
             } else {
-                let v = self.dt
-                    .linear_velocity()
-                    .await
-                    .unwrap_or(0.0);
-                let w = self.dt
-                    .angular_velocity()
-                    .await
-                    .unwrap_or(0.0);
+                let v = self.dt.linear_velocity().await.unwrap_or(0.0);
+                let w = self.dt.angular_velocity().await.unwrap_or(0.0);
                 (v, w)
             };
             let left_meas = meas_v - meas_w * (track_width_m * 0.5);
@@ -488,19 +490,25 @@ impl OdomChassis {
 
             let left_volts = (self.left_pid.calculate(left_target, left_meas)
                 + self.ff.calculate(left_target, left_accel))
-                .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+            .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
             let right_volts = (self.right_pid.calculate(right_target, right_meas)
                 + self.ff.calculate(right_target, right_accel))
-                .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+            .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
 
             let left = left_volts / Motor::V5_MAX_VOLTAGE;
             let right = right_volts / Motor::V5_MAX_VOLTAGE;
 
-            self.dt.drive_tank(left, right).await.map_err(DriveError::Motor)?;
+            self.dt
+                .drive_tank(left, right)
+                .await
+                .map_err(DriveError::Motor)?;
             sleep(Duration::from_millis(10)).await;
         }
 
-        self.dt.drive_tank(0.0, 0.0).await.map_err(DriveError::Motor)?;
+        self.dt
+            .drive_tank(0.0, 0.0)
+            .await
+            .map_err(DriveError::Motor)?;
         Ok(())
     }
 
@@ -534,15 +542,18 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let trajectory = Trajectory::from_points(points);
     /// let pursuit = PurePursuit::new(trajectory, 0.3); // 30cm lookahead
-    /// chassis.pursuit(&pursuit).await?;
+    /// chassis.pursuit(&pursuit).await;
     /// ```
     pub async fn pursuit(&mut self, path: &PurePursuit) -> Result<(), DriveError> {
         const EXIT_TOLERANCE: f64 = 0.05;
 
-        assert!(self.tracking.is_some(), "pure pursuit requires tracking rig");
+        assert!(
+            self.tracking.is_some(),
+            "pure pursuit requires tracking rig"
+        );
 
         let track_width = self.dt.width.as_meters();
         let trajectory = path.trajectory();
@@ -580,7 +591,6 @@ impl OdomChassis {
 
             let target_v = target_point.linear_velocity;
 
-
             let w = curvature * target_v;
             let left_target = target_v - w * (track_width * 0.5);
             let right_target = target_v + w * (track_width * 0.5);
@@ -599,19 +609,25 @@ impl OdomChassis {
 
             let left_volts = (self.left_pid.calculate(left_target, left_meas)
                 + self.ff.calculate(left_target, left_accel))
-                .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+            .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
             let right_volts = (self.right_pid.calculate(right_target, right_meas)
                 + self.ff.calculate(right_target, right_accel))
-                .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
+            .clamp(-Motor::V5_MAX_VOLTAGE, Motor::V5_MAX_VOLTAGE);
 
             let left = left_volts / Motor::V5_MAX_VOLTAGE;
             let right = right_volts / Motor::V5_MAX_VOLTAGE;
 
-            self.dt.drive_tank(left, right).await.map_err(DriveError::Motor)?;
+            self.dt
+                .drive_tank(left, right)
+                .await
+                .map_err(DriveError::Motor)?;
             sleep(Duration::from_millis(10)).await;
         }
 
-        self.dt.drive_tank(0.0, 0.0).await.map_err(DriveError::Motor)?;
+        self.dt
+            .drive_tank(0.0, 0.0)
+            .await
+            .map_err(DriveError::Motor)?;
         Ok(())
     }
 
@@ -659,9 +675,31 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
-    /// let target = Pose::new(Vector2::new(1.0, 2.0), QAngle::from_degrees(0.0));
-    /// chassis.turn_to_pose(target).await?;
+    /// ```ignore
+    ///     let l_motor = MotorGroup::new([
+    ///         Motor::new(peripherals.port_11, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_6, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_12, Gearset::Blue, Direction::Reverse),
+    ///    ]);
+    ///     let r_motor = MotorGroup::new([
+    ///         Motor::new(peripherals.port_19, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_10, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_9, Gearset::Blue, Direction::Reverse),
+    ///     ]);
+    ///     let mut imu = InertialSensor::new(peripherals.port_1);
+    ///     let _ = imu.calibrate().await;
+    ///     let target = Pose::new(Vec2::new(1.0, 2.0), QAngle::from_degrees(0.0));
+    ///     let mut chassis = OdomChassis::with_config(
+    ///         DifferentialDrive::new(l_motor.clone(),
+    ///                                r_motor.clone(),
+    ///                                ExpoDrive::new(1.5, 1.7, None),
+    ///                                OmniWheel::Omni325,
+    ///                                QLength::from_meters(0.35),
+    ///                               1.),
+    ///         imu,
+    ///         None,
+    ///     );
+    ///     chassis.turn_to_pose(target).await;
     /// ```
     pub async fn turn_to_pose(&mut self, pose: Pose) -> Result<(), DriveError> {
         {
@@ -699,19 +737,38 @@ impl OdomChassis {
     ///
     /// # Example
     ///
-    /// ```no_run
-    /// // Drive to position (1, 2) meters
-    /// let target = Pose::new(Vector2::new(1.0, 2.0), QAngle::from_degrees(0.0));
-    /// chassis.shoot_to_pose(target).await?;
+    /// ```ignore
+    ///     let l_motor = MotorGroup::new([
+    ///         Motor::new(peripherals.port_11, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_6, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_12, Gearset::Blue, Direction::Reverse),
+    ///    ]);
+    ///     let r_motor = MotorGroup::new([
+    ///         Motor::new(peripherals.port_19, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_10, Gearset::Blue, Direction::Reverse),
+    ///         Motor::new(peripherals.port_9, Gearset::Blue, Direction::Reverse),
+    ///     ]);
+    ///     let mut imu = InertialSensor::new(peripherals.port_1);
+    ///     let _ = imu.calibrate().await;
+    ///     let target = Pose::new(Vec2::new(1.0, 2.0), QAngle::from_degrees(0.0));
+    ///     let mut chassis = OdomChassis::with_config(
+    ///         DifferentialDrive::new(l_motor.clone(),
+    ///                                r_motor.clone(),
+    ///                                ExpoDrive::new(1.5, 1.7, None),
+    ///                                OmniWheel::Omni325,
+    ///                                QLength::from_meters(0.35),
+    ///                               1.),
+    ///         imu,
+    ///         None,
+    ///     );
+    ///     chassis.shoot_to_pose(target).await;
     /// ```
     pub async fn shoot_to_pose(&mut self, pose: Pose) -> Result<(), DriveError> {
         self.turn_to_pose(pose).await?;
         let pos = self.tracking.as_ref().unwrap().pose().position();
         let dx = pose.position().x - pos.x;
         let dy = pose.position().y - pos.y;
-        let dist = libm::sqrt(dx*dx + dy*dy);
+        let dist = libm::sqrt(dx * dx + dy * dy);
         self.shoot(QLength::from_meters(dist)).await
     }
 }
-
-

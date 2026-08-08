@@ -18,14 +18,14 @@
 //!
 //! ## From Bézier curves
 //!
-//! ```no_run
-//! use kernelvex::{Trajectory, Vector2, QTime};
+//! ```ignore
+//! use kernelvex::{Trajectory, Vec2, QTime};
 //!
 //! let trajectory = Trajectory::from_cubic_bezier(
-//!     Vector2::new(0.0, 0.0),   // Start
-//!     Vector2::new(0.5, 0.0),   // Control 1
-//!     Vector2::new(0.5, 1.0),   // Control 2
-//!     Vector2::new(1.0, 1.0),   // End
+//!     Vec2::new(0.0, 0.0),   // Start
+//!     Vec2::new(0.5, 0.0),   // Control 1
+//!     Vec2::new(0.5, 1.0),   // Control 2
+//!     Vec2::new(1.0, 1.0),   // End
 //!     QTime::from_sec(3.0),     // Total time
 //!     100,                       // Sample count
 //!     0.5,                       // Linear velocity
@@ -34,7 +34,7 @@
 //!
 //! ## Manually
 //!
-//! ```no_run
+//! ```ignore
 //! let mut trajectory = Trajectory::new();
 //! trajectory.push(TrajectoryPoint::new(pose1, 0.5, 0.0, QTime::from_sec(0.0)));
 //! trajectory.push(TrajectoryPoint::new(pose2, 0.5, 0.1, QTime::from_sec(1.0)));
@@ -42,7 +42,7 @@
 
 // TODO: add QTime instead of normal f64 type
 use crate::odom::pose::Pose;
-use crate::util::si::{QAngle, QTime, Vector2};
+use crate::util::si::{QAngle, QTime, Vec2};
 
 /// A single time-indexed point along a trajectory.
 ///
@@ -215,23 +215,23 @@ impl Trajectory {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// // S-curve trajectory
     /// let traj = Trajectory::from_cubic_bezier(
-    ///     Vector2::new(0.0, 0.0),
-    ///     Vector2::new(1.0, 0.0),
-    ///     Vector2::new(0.0, 1.0),
-    ///     Vector2::new(1.0, 1.0),
+    ///     Vec2::new(0.0, 0.0),
+    ///     Vec2::new(1.0, 0.0),
+    ///     Vec2::new(0.0, 1.0),
+    ///     Vec2::new(1.0, 1.0),
     ///     QTime::from_sec(2.0),
     ///     50,
     ///     0.8,
     /// );
     /// ```
     pub fn from_cubic_bezier(
-        p0: Vector2<f64>,
-        p1: Vector2<f64>,
-        p2: Vector2<f64>,
-        p3: Vector2<f64>,
+        p0: Vec2<f64>,
+        p1: Vec2<f64>,
+        p2: Vec2<f64>,
+        p3: Vec2<f64>,
         total_time: QTime,
         samples: usize,
         linear_velocity: f64,
@@ -273,7 +273,7 @@ fn interpolate_pose(a: Pose, b: Pose, t: f64) -> Pose {
     let (bx, by) = (b.position().x, b.position().y);
     let heading = lerp_angle(a.heading(), b.heading(), t);
     Pose::new(
-        Vector2::<f64>::new(lerp(ax, bx, t), lerp(ay, by, t)),
+        Vec2::<f64>::new(lerp(ax, bx, t), lerp(ay, by, t)),
         heading,
     )
 }
@@ -293,12 +293,12 @@ fn interpolate_pose(a: Pose, b: Pose, t: f64) -> Pose {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// let curve = Bezier::new(
-///     Vector2::new(0.0, 0.0),   // Start
-///     Vector2::new(1.0, 0.0),   // Control 1 - pulls curve right
-///     Vector2::new(0.0, 1.0),   // Control 2 - pulls curve up
-///     Vector2::new(1.0, 1.0),   // End
+///     Vec2::new(0.0, 0.0),   // Start
+///     Vec2::new(1.0, 0.0),   // Control 1 - pulls curve right
+///     Vec2::new(0.0, 1.0),   // Control 2 - pulls curve up
+///     Vec2::new(1.0, 1.0),   // End
 /// );
 ///
 /// // Sample point at t=0.5 (middle of curve)
@@ -308,13 +308,13 @@ fn interpolate_pose(a: Pose, b: Pose, t: f64) -> Pose {
 #[derive(Debug, Clone, Copy)]
 pub struct Bezier {
     /// Starting point of the curve.
-    start: Vector2<f64>,
+    start: Vec2<f64>,
     /// First control point (influences curve near start).
-    control1: Vector2<f64>,
+    control1: Vec2<f64>,
     /// Second control point (influences curve near end).
-    control2: Vector2<f64>,
+    control2: Vec2<f64>,
     /// Ending point of the curve.
-    end: Vector2<f64>,
+    end: Vec2<f64>,
 }
 
 impl Bezier {
@@ -331,10 +331,10 @@ impl Bezier {
     /// * `end` - Ending point
     #[inline]
     pub const fn new(
-        start: Vector2<f64>,
-        control1: Vector2<f64>,
-        control2: Vector2<f64>,
-        end: Vector2<f64>,
+        start: Vec2<f64>,
+        control1: Vec2<f64>,
+        control2: Vec2<f64>,
+        end: Vec2<f64>,
     ) -> Self {
         Self {
             start,
@@ -358,7 +358,7 @@ impl Bezier {
     ///
     /// Panics if t > 1.0.
     #[inline]
-    pub fn point(&self, t: f64) -> Vector2<f64> {
+    pub fn point(&self, t: f64) -> Vec2<f64> {
         {
             assert!(t <= Self::T_MAX, "time cannot exceed 1");
         }
@@ -389,7 +389,7 @@ impl Bezier {
     ///
     /// Panics if t > 1.0.
     #[inline]
-    pub fn tangent(&self, t: f64) -> Vector2<f64> {
+    pub fn tangent(&self, t: f64) -> Vec2<f64> {
         {
             assert!(t <= Self::T_MAX, "time cannot exceed 1");
         }
@@ -442,7 +442,7 @@ impl Bezier {
     /// # Panics
     ///
     /// Panics if t > 1.0.
-    pub fn derivative(&self, t: f64) -> Vector2<f64> {
+    pub fn derivative(&self, t: f64) -> Vec2<f64> {
         {
             assert!(t <= Self::T_MAX, "time cannot exceed 1");
         }

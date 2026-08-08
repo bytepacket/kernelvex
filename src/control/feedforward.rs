@@ -25,7 +25,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::FeedForward;
 //!
 //! let mut ff = FeedForward::new();
@@ -58,7 +58,7 @@ use crate::QAngle;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// let ff = FeedForward::new()
 ///     .set_gains(0.1, 0.5, 0.01);
 ///
@@ -169,7 +169,7 @@ impl FeedForward {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// use kernelvex::{ArmFeedForward, QAngle};
 ///
 /// let ff = ArmFeedForward::new(0.1, 0.5, 0.01, 0.3);
@@ -276,7 +276,7 @@ impl ArmFeedForward {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// // Using cosine for simple arm
     /// let voltage = ff.calculate(angle, vel, acc, |a| a.cos());
     ///

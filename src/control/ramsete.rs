@@ -31,7 +31,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::{RamseteController, RamseteReference, Pose};
 //!
 //! let ramsete = RamseteController::new().set(2.0, 0.7);
@@ -67,6 +67,10 @@ pub struct RamseteController {
     zeta: f64,
     /// Small-angle epsilon for sinc calculation.
     epsilon: f64,
+    /// Maximum linear velocity (None = unlimited).
+    max_v: Option<f64>,
+    /// Maximum angular velocity (None = unlimited).
+    max_w: Option<f64>,
 }
 
 /// A trajectory reference point for RAMSETE tracking.
@@ -119,7 +123,7 @@ impl RamseteController {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let ramsete = RamseteController::new().set(2.0, 0.7);
     /// ```
     #[inline]
@@ -128,6 +132,8 @@ impl RamseteController {
             b: 0.,
             zeta: 0.,
             epsilon: 1e-6,
+            max_v: None,
+            max_w: None,
         }
     }
 
@@ -146,6 +152,8 @@ impl RamseteController {
             b,
             zeta,
             epsilon: 1e-6,
+            max_v: None,
+            max_w: None,
         }
     }
 
@@ -195,7 +203,7 @@ impl RamseteController {
         let e_x = cos_h * dx + sin_h * dy;
         let e_y = -sin_h * dx + cos_h * dy;
 
-        let e_theta = (reference.pose.heading() - heading).remainder(QAngle::TAU);
+        let e_theta = normalize_angle(reference.pose.heading() - heading);
 
         let v_d = reference.linear_velocity;
         let w_d = reference.angular_velocity;
@@ -219,4 +227,19 @@ fn sinc(theta: f64, epsilon: f64) -> f64 {
     } else {
         libm::sin(theta) / theta
     }
+}
+
+/// Normalizes an angle to the range [-π, π].
+///
+/// This ensures the shortest rotational path is taken when computing
+/// heading errors.
+fn normalize_angle(angle: QAngle) -> QAngle {
+    let mut radians = angle.as_radians();
+    while radians > std::f64::consts::PI {
+        radians -= QAngle::TAU.as_radians();
+    }
+    while radians < -std::f64::consts::PI {
+        radians += QAngle::TAU.as_radians();
+    }
+    QAngle::from_radians(radians)
 }

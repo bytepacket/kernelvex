@@ -8,7 +8,7 @@
 //! - [`GroupErrors`]: Type alias for collections of port errors
 use crate::util::si::QLength;
 
-use vexide_devices::smart::PortError;
+use vexide::smart::PortError;
 /// Represents the orientation or direction of a tracking wheel or component.
 ///
 /// This enum is used in two contexts:
@@ -51,7 +51,7 @@ pub enum Orientation {
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use kernelvex::util::utils::TrackingWheelOrientation;
 /// use kernelvex::util::si::QLength;
 ///

@@ -1,10 +1,9 @@
 use std::pin::Pin;
-use std::sync::{Arc};
+use std::sync::Arc;
+use vexide::controller::{ButtonState, Controller as VEXController, ControllerState};
 use vexide_async::sync::Mutex;
 use vexide_async::task::Task;
 use vexide_async::time::sleep;
-use vexide_devices::controller::{ButtonState, Controller as VEXController, ControllerState};
-
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
@@ -82,29 +81,24 @@ impl Controller {
     {
         let mut bindings = self.bindings.lock().await;
 
-        let wrapped_callback: AsyncCallback = Box::new(move || {
-            Box::pin(callback())
-        });
+        let wrapped_callback: AsyncCallback = Box::new(move || Box::pin(callback()));
 
         bindings.push((button, wrapped_callback));
     }
 
     pub async fn build(&mut self) {
-
         self._task = Some(vexide_async::task::spawn(Self::task(
-
             self.controller.clone(),
-
             self.bindings.clone(),
-
         )));
-
     }
 
-    async fn task(controller: Arc<Mutex<VEXController>>, bindings: Arc<Mutex<Vec<(Button, AsyncCallback)>>>) {
+    async fn task(
+        controller: Arc<Mutex<VEXController>>,
+        bindings: Arc<Mutex<Vec<(Button, AsyncCallback)>>>,
+    ) {
         let mut last_state = ControllerState::default();
         loop {
-
             let state = controller.lock().await.state().unwrap_or_default();
 
             for (k, v) in bindings.lock().await.iter() {
@@ -148,5 +142,3 @@ async unsafe fn test() {
     guard.clear_screen().await.expect("cant clear");
 }
 */
-
-

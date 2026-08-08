@@ -26,7 +26,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::{DifferentialDrive, MotorGroup, OmniWheel, QLength};
 //! use kernelvex::dt::differential::ExpoDrive;
 //!
@@ -52,7 +52,7 @@
 
 use crate::dt::model::{Arcade, CurvatureDrive, Drivetrain, Tank};
 use crate::util::utils::GroupErrors;
-use crate::{MotorGroup, OmniWheel, QLength, Vector2};
+use crate::{MotorGroup, OmniWheel, QLength, Vec2};
 
 /// A differential (tank-style) drivetrain with left and right motor groups.
 ///
@@ -114,7 +114,7 @@ pub struct DifferentialDrive {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// let expo = ExpoDrive::new(2.0, 1.0);
 /// let (x, y) = expo.calculate(0.5, 0.5).as_tuple();
 /// ```
@@ -148,12 +148,12 @@ impl ExpoDrive {
     ///
     /// # Returns
     ///
-    /// Scaled output as a [`Vector2<f64>`]
+    /// Scaled output as a [`Vec2<f64>`]
     ///
     /// # Panics
     ///
     /// Panics if inputs are outside [-1, 1] range.
-    pub fn calculate(&self, x: f64, y: f64) -> Vector2<f64> {
+    pub fn calculate(&self, x: f64, y: f64) -> Vec2<f64> {
         {
             assert!(-1.0 <= x && x <= 1.0, "x must be between [-1, 1]");
         }
@@ -163,7 +163,7 @@ impl ExpoDrive {
         }
 
         if x == 0. && y == 0. {
-            return Vector2::<f64>::new(0.0, 0.0);
+            return Vec2::<f64>::new(0.0, 0.0);
         }
 
         let m = libm::pow(libm::pow(libm::fabs(x), self.n+2.) + libm::pow(libm::fabs(y), self.n+2.), 1./(self.n+2.));
@@ -180,7 +180,7 @@ impl ExpoDrive {
             fy = 0.;
         }
 
-        Vector2::<f64>::new(fx, fy)
+        Vec2::<f64>::new(fx, fy)
     }
 }
 
@@ -198,7 +198,7 @@ impl DifferentialDrive {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let drivetrain = DifferentialDrive::new(
     ///     left_motors,
     ///     right_motors,

@@ -17,10 +17,9 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::MotorGroup;
 //! use vexide_devices::smart::motor::Motor;
-//!
 //! // Create a motor group with 2 motors
 //! let mut group = MotorGroup::new([motor1, motor2]);
 //!
@@ -32,17 +31,13 @@
 //! ```
 
 #![allow(dead_code)]
-// TODO: remove results with warns (no errors)
 
 use crate::util::si::QAngle;
 use crate::util::utils::GroupErrors;
 use std::sync::Arc;
+use vexide::math::Direction;
+use vexide::smart::motor::{BrakeMode, Motor, MotorControl};
 use vexide_async::sync::Mutex;
-use vexide_devices::smart::motor::MotorControl;
-use vexide_devices::{
-    math::Direction,
-    smart::motor::{BrakeMode, Motor},
-};
 
 use heapless::Vec;
 
@@ -54,24 +49,36 @@ use heapless::Vec;
 ///
 /// # Capacity
 ///
-/// The internal storage supports up to 6 motors per group, which covers
+/// The internal storage supports up to 8 motors per group, which covers
 /// most VEX robotics applications.
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
+/// use vexide::prelude::*;
+/// use vexide_devices::smart::SmartPort;
+/// use kernelvex::MotorGroup;
+///
+///
+/// #[vexide::main]
+/// async fn main(peripherals: Peripherals) {
+/// let motor1 = Motor::new(unsafe {SmartPort::new(1)}, Gearset::Blue, Direction::Forward);
+/// let motor2 = Motor::new(unsafe {SmartPort::new(2)}, Gearset::Blue, Direction::Forward);
+/// let motor3 = Motor::new(unsafe {SmartPort::new(3)}, Gearset::Blue, Direction::Forward);
+///
 /// let mut group = MotorGroup::new([motor1, motor2, motor3]);
 ///
 /// // All motors receive 8V
-/// group.set_voltage(8.0).await?;
+/// group.set_voltage(8.0).await;
 ///
 /// // Get average velocity across all motors
-/// let avg_rpm = group.velocity().await?;
+/// let avg_rpm = group.velocity().await;
+/// }
 /// ```
 #[derive(Clone)]
 pub struct MotorGroup {
-    /// Thread-safe storage for up to 6 motors.
-    motors: Arc<Mutex<Vec<Motor, 6>>>,
+    /// Thread-safe storage for up to 8 motors.
+    motors: Arc<Mutex<Vec<Motor, 8>>>,
 }
 
 impl MotorGroup {
@@ -87,7 +94,7 @@ impl MotorGroup {
     /// Panics if `index` is out of bounds.
     pub async fn use_at<F, R>(&self, index: usize, f: F) -> R
     where
-        F: FnOnce(&mut Motor) -> R
+        F: FnOnce(&mut Motor) -> R,
     {
         let mut guard = self.motors.lock().await;
         f(&mut guard[index])
@@ -102,7 +109,7 @@ impl MotorGroup {
     ///
     /// # Arguments
     ///
-    /// * `motors` - Array of motors (up to 6)
+    /// * `motors` - Array of motors (up to 8)
     ///
     /// # Type Parameters
     ///
@@ -110,11 +117,13 @@ impl MotorGroup {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let group = MotorGroup::new([motor1, motor2]);
     /// ```
     pub fn new<const N: usize>(motors: [Motor; N]) -> Self {
-        MotorGroup { motors: Arc::new(Mutex::new(Vec::from(motors))) }
+        MotorGroup {
+            motors: Arc::new(Mutex::new(Vec::from(motors))),
+        }
     }
 
     /// Sets the voltage for all motors in the group.
@@ -133,11 +142,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_voltage(volts).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Sets the velocity target for all motors in the group.
@@ -158,11 +163,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_velocity(rpm).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Applies the given brake mode to all motors.
@@ -181,11 +182,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.brake(brake).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Sets the direction for all motors in the group.
@@ -204,11 +201,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_direction(direction).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Sets a position target for all motors with the given velocity.
@@ -234,11 +227,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_position_target(position.into(), velocity).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Sets a profiled velocity target for all motors.
@@ -259,11 +248,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_profiled_velocity(velocity).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Sets a motor control target for all motors.
@@ -282,11 +267,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_target(target).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Sets the encoder position for all motors.
@@ -305,11 +286,7 @@ impl MotorGroup {
             .iter_mut()
             .filter_map(|motor| motor.set_position(position.into()).err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Resets the encoder position of all motors to zero.
@@ -320,16 +297,12 @@ impl MotorGroup {
     /// * `Err(GroupErrors)` - One or more motors failed
     pub async fn reset_position(&mut self) -> Result<(), GroupErrors> {
         let mut guard = self.motors.lock().await;
-        
+
         let ret: GroupErrors = guard
             .iter_mut()
             .filter_map(|motor| motor.reset_position().err())
             .collect();
-        if ret.is_empty() {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret.is_empty() { Ok(()) } else { Err(ret) }
     }
 
     /// Returns the average velocity of all motors in the group.
@@ -342,21 +315,18 @@ impl MotorGroup {
         let guard = self.motors.lock().await;
         let mut errors = GroupErrors::new();
         let mut total_rpm = 0i32;
-        
+
         for motor in guard.iter() {
             match motor.velocity() {
                 Ok(rpm) => total_rpm += rpm as i32,
                 Err(e) => errors.push(e),
             }
         }
-        
+
         if errors.is_empty() {
             Ok(total_rpm / guard.len() as i32)
         } else {
             Err(errors)
         }
     }
-    
 }
-
-

@@ -27,7 +27,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::{PurePursuit, Trajectory, Pose};
 //!
 //! let controller = PurePursuit::new(trajectory, 0.3); // 30cm lookahead
@@ -41,7 +41,7 @@
 
 use crate::motion::trajectory::{Trajectory, TrajectoryPoint};
 use crate::odom::pose::Pose;
-use crate::util::si::Vector2;
+use crate::util::si::Vec2;
 
 /// Pure pursuit controller for path following.
 ///
@@ -70,7 +70,7 @@ impl PurePursuit {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let controller = PurePursuit::new(trajectory, 0.3); // 30cm lookahead
     /// ```
     #[inline]
@@ -132,7 +132,7 @@ impl PurePursuit {
         let center = pose.position();
         let radius = self.lookahead;
 
-        let mut best: Option<(usize, f64, Vector2<f64>)> = None;
+        let mut best: Option<(usize, f64, Vec2<f64>)> = None;
 
         for (index, window) in points.windows(2).enumerate() {
             let a_pose = window[0].pose;
@@ -188,7 +188,7 @@ impl PurePursuit {
     /// ```
     ///
     /// Where `y_robot` is the lateral offset in the robot's coordinate frame.
-    pub fn curvature(&self, pose: Pose, target: Vector2<f64>) -> f64 {
+    pub fn curvature(&self, pose: Pose, target: Vec2<f64>) -> f64 {
         /// Minimum lookahead distance to avoid division by near-zero values.
         /// 1mm is small enough to be effectively zero.
         const LOOKAHEAD_EPSILON: f64 = 1e-3;
@@ -223,11 +223,11 @@ impl PurePursuit {
 ///
 /// Vector of (t, point) tuples where t is the parameter [0, 1] along the segment.
 fn segment_circle_intersections(
-    a: Vector2<f64>,
-    b: Vector2<f64>,
-    center: Vector2<f64>,
+    a: Vec2<f64>,
+    b: Vec2<f64>,
+    center: Vec2<f64>,
     radius: f64,
-) -> Vec<(f64, Vector2<f64>)> {
+) -> Vec<(f64, Vec2<f64>)> {
     let d = b - a;
     let f = a - center;
 

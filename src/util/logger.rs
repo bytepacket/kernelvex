@@ -36,7 +36,7 @@
 //!
 //! Log messages are formatted as:
 //! ```text
-//! [timestamp] [LEVEL] [tid:thread_id] message
+//! [timestamp] [LEVEL]  message
 //! ```
 
 use std::fmt;
@@ -356,14 +356,13 @@ pub fn init() -> (Logger, LoggerHandle) {
                         timestamp,
                     } => {
                         let ts = humantime::format_rfc3339_seconds(timestamp);
-                        let tid = thread_id::get();
                         let mut guard = thread_output.lock().unwrap();
                         let line = if !matches!(*guard, Output::File(_)) {
                             let color = level.color();
                             let reset = "\x1b[0m";
-                            format!("[{ts}] [{color}{level}{reset}] [tid:{tid}] {body}\n")
+                            format!("[{ts}] [{color}{level}{reset}] {body}\n")
                         } else {
-                            format!("[{ts}] [{level}] [tid:{tid}] {body}\n")
+                            format!("[{ts}] [{level}] {body}\n")
                         };
 
                         guard.write(line.as_bytes());

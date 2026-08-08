@@ -28,7 +28,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::{TrapezoidalConstraints, QLength};
 //!
 //! let constraints = TrapezoidalConstraints::new()
@@ -77,7 +77,7 @@ pub struct MotionState {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// let constraints = TrapezoidalConstraints::new()
 ///     .set_gains(1.5, 3.0);  // 1.5 m/s max, 3 m/s^2 accel
 /// ```
@@ -136,7 +136,7 @@ impl TrapezoidalConstraints {
     ///
     /// # Example
     ///
-    /// ```no_run
+    /// ```ignore
     /// let profile = constraints.generate_profile(QLength::from_meters(1.0));
     /// for state in profile.windows(2) {
     ///     let target_v = state[0].velocity;

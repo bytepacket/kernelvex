@@ -50,17 +50,17 @@
 use crate::odom::pose::Pose;
 use crate::odom::wheel::Encoder::{Adi, Smart};
 use crate::util::si::QLength;
-use crate::util::utils::{TrackingWheelOrientation, Orientation};
-use crate::{QAngle, Vector2};
+use crate::util::utils::{Orientation, TrackingWheelOrientation};
+use crate::{QAngle, Vec2};
+use heapless::Vec;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
-use vexide_async::task::{spawn, Task};
+use vexide::adi::encoder::AdiEncoder;
+use vexide::smart::imu::InertialSensor;
+use vexide::smart::rotation::RotationSensor;
+use vexide_async::task::{Task, spawn};
 use vexide_async::time::sleep;
-use vexide_devices::adi::encoder::AdiEncoder;
-use vexide_devices::smart::imu::InertialSensor;
-use vexide_devices::smart::rotation::RotationSensor;
-use heapless::Vec;
 
 #[derive(Debug)]
 pub enum Encoder {
@@ -222,12 +222,8 @@ impl TrackingWheel {
         let circumference = self.wheel.size() * std::f64::consts::PI;
 
         let rotations = match &self.encoder {
-            Adi(encoder) => {
-                QAngle::from_turns(encoder.position().unwrap().as_turns())
-            }
-            Smart(encoder) => {
-                QAngle::from_turns(encoder.position().unwrap().as_turns())
-            }
+            Adi(encoder) => QAngle::from_turns(encoder.position().unwrap().as_turns()),
+            Smart(encoder) => QAngle::from_turns(encoder.position().unwrap().as_turns()),
         };
 
         let distance =
@@ -412,27 +408,24 @@ impl TrackingRig {
         vertical: [TrackingWheel; U],
         imu: Option<InertialSensor>,
     ) -> Self {
-
         const {
-            assert!(N <= 2 || U <= 2 , "cannot have over 2 tracking wheels each");
+            assert!(N <= 2 || U <= 2, "cannot have over 2 tracking wheels each");
         }
 
         let mut h_wheels: Vec<TrackingWheel, 2> = Vec::from_array(horizontal);
 
-
         let mut v_wheels: Vec<TrackingWheel, 2> = Vec::from_array(vertical);
- 
 
         let parallel_indices = find_parallel_forward_indices(&h_wheels);
 
+        assert!(
+            imu.is_some() || parallel_indices.is_some(),
+            "gyro or two parallel forward wheels are required to determine heading"
+        );
 
-            assert!(
-                imu.is_some() || parallel_indices.is_some(),
-                "gyro or two parallel forward wheels are required to determine heading"
-            );
-
-        let initial_heading = compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), &mut h_wheels[..])
-            .unwrap_or_default();
+        let initial_heading =
+            compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), &mut h_wheels[..])
+                .unwrap_or_default();
         let initial_forward: Vec<f64, 2> = v_wheels
             .iter_mut()
             .map(|wheel| wheel.distance().as_meters())
@@ -442,7 +435,11 @@ impl TrackingRig {
             .map(|wheel| wheel.distance().as_meters())
             .sum();
 
-        let initial_forward_travel = if initial_forward.is_empty() { 0.0 } else { initial_forward.iter().sum::<f64>() / initial_forward.len() as f64 };
+        let initial_forward_travel = if initial_forward.is_empty() {
+            0.0
+        } else {
+            initial_forward.iter().sum::<f64>() / initial_forward.len() as f64
+        };
 
         let data = Rc::new(RefCell::new(TrackingData {
             pose: origin,
@@ -455,7 +452,6 @@ impl TrackingRig {
 
         let task_data = Rc::clone(&data);
 
-
         let task = spawn(async move {
             Self::task(
                 &mut v_wheels[..],
@@ -467,10 +463,11 @@ impl TrackingRig {
                 Vec::from_slice(&[initial_sideways]).unwrap(),
                 initial_heading,
                 initial_forward_travel,
-            ).await;
+            )
+            .await;
         });
 
-        Self { data, _task: task}
+        Self { data, _task: task }
     }
 
     /// Returns the latest pose estimate.
@@ -559,31 +556,32 @@ impl TrackingRig {
         loop {
             sleep(Duration::from_millis(10)).await;
 
-        let forward_data: Vec<(f64, f64), 2> = forward
-            .iter_mut()
-            .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()))
-            .collect();
-        let sideways_data: Vec<(f64, f64), 2> = sideways
-            .iter_mut()
-            .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()))
-            .collect();
+            let forward_data: Vec<(f64, f64), 2> = forward
+                .iter_mut()
+                .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()))
+                .collect();
+            let sideways_data: Vec<(f64, f64), 2> = sideways
+                .iter_mut()
+                .map(|wheel| (wheel.distance().as_meters(), wheel.offset().as_meters()))
+                .collect();
 
-        let raw_heading = match compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), forward) {
-                Ok(heading) => heading,
-                Err(HeadingError::Imu(fallback)) => {
-                    imu = None;
-                    if let Some(fallback_heading) = fallback {
-                        fallback_heading
-                    } else {
-                        return;
+            let raw_heading =
+                match compute_raw_heading(imu.as_ref(), parallel_indices.as_ref(), forward) {
+                    Ok(heading) => heading,
+                    Err(HeadingError::Imu(fallback)) => {
+                        imu = None;
+                        if let Some(fallback_heading) = fallback {
+                            fallback_heading
+                        } else {
+                            return;
+                        }
                     }
-                }
-                Err(HeadingError::Rotary) if imu.is_some() => {
-                    imu = None;
-                    continue;
-                }
-                Err(_) => continue,
-            };
+                    Err(HeadingError::Rotary) if imu.is_some() => {
+                        imu = None;
+                        continue;
+                    }
+                    Err(_) => continue,
+                };
 
             let delta_heading = (raw_heading - prev_raw_heading).remainder(QAngle::TAU);
             let avg_heading = raw_heading + delta_heading * 0.5 + data.borrow().heading_offset;
@@ -652,7 +650,11 @@ impl TrackingRig {
             prev_forward_travel = forward_travel;
 
             let angular_velocity = if let Some(imu_ref) = imu.as_ref() {
-                imu_ref.gyro_rate().ok().map(|v| v.z.to_radians()).unwrap_or(0.0)
+                imu_ref
+                    .gyro_rate()
+                    .ok()
+                    .map(|v| v.z.to_radians())
+                    .unwrap_or(0.0)
             } else if dt > 0.0 {
                 delta_heading.as_radians() / dt
             } else {
@@ -667,8 +669,7 @@ impl TrackingRig {
             let mut state = data.borrow_mut();
             let (x, y) = (state.pose.position().x, state.pose.position().y);
             state.pose = Pose::new(
-                Vector2::<f64>::new(x + dx_field,
-                y + dy_field),
+                Vec2::<f64>::new(x + dx_field, y + dy_field),
                 raw_heading + state.heading_offset,
             );
             state.raw_heading = raw_heading;
@@ -709,7 +710,6 @@ enum HeadingError {
     /// Rotation sensor read failed
     Rotary,
 }
-
 
 /// Finds indices of two parallel forward wheels suitable for heading calculation.
 ///
@@ -770,7 +770,7 @@ fn find_parallel_forward_indices(forward: &Vec<TrackingWheel, 2>) -> Option<(usi
 /// # Note
 ///
 /// IMU heading is negated to match the convention (positive = counter-clockwise).
-fn compute_raw_heading (
+fn compute_raw_heading(
     imu: Option<&InertialSensor>,
     parallel_indices: Option<&(usize, usize)>,
     forward: &mut [TrackingWheel],
@@ -778,12 +778,10 @@ fn compute_raw_heading (
     if let Some(imu_ref) = imu {
         return match imu_ref.heading() {
             Ok(heading) => Ok(QAngle::from_degrees(heading.as_degrees() * -1.0)),
-            Err(_) => {
-                Err(HeadingError::Imu(parallel_indices.and_then(|(l, r)| {
-                    wheel_heading(forward, *l, *r)
-                })))
-            }
-        }
+            Err(_) => Err(HeadingError::Imu(
+                parallel_indices.and_then(|(l, r)| wheel_heading(forward, *l, *r)),
+            )),
+        };
     }
 
     if let Some((left, right)) = parallel_indices {
@@ -815,7 +813,7 @@ fn compute_raw_heading (
 ///
 /// `Some(heading)` if computation succeeds, `None` if indices are invalid
 /// or track width is zero.
-fn wheel_heading (
+fn wheel_heading(
     forward: &mut [TrackingWheel],
     left_index: usize,
     right_index: usize,
@@ -834,5 +832,7 @@ fn wheel_heading (
     let left_travel = forward[left_index].distance().as_meters();
     let right_travel = forward[right_index].distance().as_meters();
 
-    Some(QAngle::from_radians((right_travel - left_travel) / track_width))
+    Some(QAngle::from_radians(
+        (right_travel - left_travel) / track_width,
+    ))
 }

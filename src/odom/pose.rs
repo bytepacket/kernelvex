@@ -8,16 +8,16 @@
 //!
 //! ```no_run
 //! use kernelvex::odom::pose::Pose;
-//! use kernelvex::util::si::{QAngle, QLength, Vector2};
+//! use kernelvex::util::si::{QAngle, QLength, Vec2};
 //!
 //! // Create odom pose at (1.0, 2.0) meters with 45 degree heading
 //! let pose = Pose::new(
-//!     Vector2::<f64>::new(1., 2.),
+//!     Vec2::<f64>::new(1., 2.),
 //!     QAngle::from_degrees(45.0),
 //! );
 //!
 //! // Transform poses
-//! let other = Pose::new(Vector2::<f64>::new(2., 1.,), QAngle::from_degrees(90.0));
+//! let other = Pose::new(Vec2::<f64>::new(2., 1.,), QAngle::from_degrees(90.0));
 //! let combined = pose * other;
 //!
 //! // Calculate distance between poses
@@ -26,7 +26,7 @@
 
 use crate::util::si::{QAngle, QLength};
 use nalgebra::base::Matrix3;
-use crate::Vector2;
+use crate::Vec2;
 
 /// Represents odom 2D pose (position and orientation) in space.
 ///
@@ -38,11 +38,11 @@ use crate::Vector2;
 ///
 /// ```no_run
 /// use kernelvex::odom::pose::Pose;
-/// use kernelvex::util::si::{QAngle, QLength, Vector2};
+/// use kernelvex::util::si::{QAngle, QLength, Vec2};
 ///
 /// // Create poses
 /// let start = Pose::new(Default::default(), QAngle::from_degrees(0.0));
-/// let end = Pose::new(Vector2::<f64>::new(5., 3.), QAngle::from_degrees(90.0));
+/// let end = Pose::new(Vec2::<f64>::new(5., 3.), QAngle::from_degrees(90.0));
 ///
 /// // Transform by composition
 /// let result = start * end;
@@ -102,11 +102,11 @@ impl Pose {
     /// ```no_run
     /// use kernelvex::odom::pose::Pose;
     /// use kernelvex::util::si::QAngle;
-    /// use kernelvex::util::si::Vector2;
+    /// use kernelvex::util::si::Vec2;
     ///
-    /// let pose = Pose::new(Vector2::<f64>::new(1.5, 2.0), QAngle::from_degrees(45.0));
+    /// let pose = Pose::new(Vec2::<f64>::new(1.5, 2.0), QAngle::from_degrees(45.0));
     /// ```
-    pub fn new(position: Vector2<f64>, heading: QAngle) -> Self {
+    pub fn new(position: Vec2<f64>, heading: QAngle) -> Self {
         Pose {
             position: Matrix3::new(
                 heading.cos(),
@@ -159,14 +159,14 @@ impl Pose {
     ///
     /// ```no_run
     /// use kernelvex::odom::pose::Pose;
-    /// use kernelvex::util::si::{QAngle, Vector2};
+    /// use kernelvex::util::si::{QAngle, Vec2};
     ///
-    /// let pose = Pose::new(Vector2::<f64>::new(3., 4.), QAngle::from_degrees(0.0));
+    /// let pose = Pose::new(Vec2::<f64>::new(3., 4.), QAngle::from_degrees(0.0));
     /// let pos = pose.position();
     /// assert_eq!((pos.x, pos.y), (3.0, 4.0));
     /// ```
-    pub fn position(&self) -> Vector2<f64> {
-        Vector2::<f64>::new(self.position.m13, self.position.m23)
+    pub fn position(&self) -> Vec2<f64> {
+        Vec2::<f64>::new(self.position.m13, self.position.m23)
     }
 
     /// Calculates the angle from this pose to another pose.
@@ -186,10 +186,10 @@ impl Pose {
     ///
     /// ```no_run
     /// use kernelvex::odom::pose::Pose;
-    /// use kernelvex::util::si::{QAngle, Vector2};
+    /// use kernelvex::util::si::{QAngle, Vec2};
     ///
     /// let origin = Pose::new(Default::default(), QAngle::from_degrees(0.0));
-    /// let target = Pose::new(Vector2::<f64>::new(1., 1.), QAngle::from_degrees(0.0));
+    /// let target = Pose::new(Vec2::<f64>::new(1., 1.), QAngle::from_degrees(0.0));
     /// let angle = origin.angle(target);
     /// // angle is approximately 45 degrees
     /// ```
@@ -216,7 +216,7 @@ impl Pose {
     ///
     /// ```no_run
     /// use kernelvex::odom::pose::Pose;
-    /// use kernelvex::util::si::{QAngle, Vector2};
+    /// use kernelvex::util::si::{QAngle, Vec2};
     ///
     /// let pose = Pose::new(Default::default(), QAngle::from_degrees(0.0));
     /// let rotated = pose.rotate(QAngle::from_degrees(90.0));
@@ -240,10 +240,10 @@ impl Pose {
     ///
     /// ```no_run
     /// use kernelvex::odom::pose::Pose;
-    /// use kernelvex::util::si::{QAngle, Vector2};
+    /// use kernelvex::util::si::{QAngle, Vec2};
     ///
     /// let p1 = Pose::new(Default::default(), QAngle::from_degrees(0.0));
-    /// let p2 = Pose::new(Vector2::<f64>::new(3., 4.), QAngle::from_degrees(0.0));
+    /// let p2 = Pose::new(Vec2::<f64>::new(3., 4.), QAngle::from_degrees(0.0));
     /// let dist = p1.distance(p2);
     /// // dist is 5.0 meters
     /// ```
@@ -303,7 +303,7 @@ impl std::ops::Add<Pose> for Pose {
     type Output = Pose;
     fn add(self, other: Pose) -> Pose {
         Pose::new(
-            Vector2::<f64>::new(self.position().x + other.position().x, self.position().y + other.position().y),
+            Vec2::<f64>::new(self.position().x + other.position().x, self.position().y + other.position().y),
             self.heading,
         )
     }
@@ -316,7 +316,7 @@ impl std::ops::Sub<Pose> for Pose {
     type Output = Pose;
     fn sub(self, other: Pose) -> Pose {
         Pose::new(
-            Vector2::<f64>::new(self.position().x - other.position().x, self.position().y - other.position().y),
+            Vec2::<f64>::new(self.position().x - other.position().x, self.position().y - other.position().y),
             self.heading,
         )
     }
@@ -342,7 +342,7 @@ impl std::ops::Mul<f64> for Pose {
 
     fn mul(self, rhs: f64) -> Self::Output {
         Pose::new(
-            Vector2::<f64>::new(self.position().x * rhs, self.position().y * rhs),
+            Vec2::<f64>::new(self.position().x * rhs, self.position().y * rhs),
             self.heading,
         )
     }
@@ -353,7 +353,7 @@ impl std::ops::Div<f64> for Pose {
 
     fn div(self, rhs: f64) -> Self::Output {
         Pose::new(
-            Vector2::<f64>::new(self.position().x / rhs, self.position().y / rhs),
+            Vec2::<f64>::new(self.position().x / rhs, self.position().y / rhs),
             self.heading,
         )
     }
@@ -361,13 +361,13 @@ impl std::ops::Div<f64> for Pose {
 
 impl From<(f64, f64, f64)> for Pose {
     fn from(value: (f64, f64, f64)) -> Self {
-        Self::new(Vector2::<f64>::new(value.0, value.1), QAngle::from_radians(value.2))
+        Self::new(Vec2::<f64>::new(value.0, value.1), QAngle::from_radians(value.2))
     }
 }
 
 impl From<(f64, f64)> for Pose {
     fn from(value: (f64, f64)) -> Self {
-        Self::new(Vector2::<f64>::new(value.0, value.1), Default::default())
+        Self::new(Vec2::<f64>::new(value.0, value.1), Default::default())
     }
 }
 

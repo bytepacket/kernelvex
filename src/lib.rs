@@ -51,17 +51,14 @@
 //! | [`odom`] | Odometry, pose estimation, tracking wheels |
 //! | [`util`] | Type-safe units, logging, solenoid groups |
 
-
-pub use odom::wheel::{OmniWheel, TrackingWheel, TrackingRig};
-pub use odom::chassis::{
-    DriveError, OdomChassis,
-};
+pub use odom::chassis::{DriveError, OdomChassis};
+pub use odom::wheel::{OmniWheel, TrackingRig, TrackingWheel};
 
 pub use control::ramsete::{RamseteController, RamseteReference};
-pub use util::controller::*;
 pub use motion::profile::TrapezoidalConstraints;
 pub use motion::trajectory::{Trajectory, TrajectoryPoint};
 pub use odom::{pose::Pose, wheel::*};
+pub use util::controller::*;
 
 pub use util::si::{QAngle, QLength, QTime};
 

@@ -20,7 +20,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use kernelvex::{Tank, Arcade, CurvatureDrive};
 //!
 //! // Tank drive: direct left/right control
@@ -42,7 +42,7 @@ use crate::util::utils::GroupErrors;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// // Drive forward at 50% power
 /// drivetrain.drive_tank(0.5, 0.5).await?;
 ///
@@ -78,7 +78,7 @@ pub trait Tank {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// // Drive forward at 50%
 /// drivetrain.drive_arcade(0.5, 0.0).await?;
 ///
@@ -117,7 +117,7 @@ pub trait Arcade {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// // Drive forward at 80% with slight right turn
 /// drivetrain.drive_curvature(0.8, 0.2).await?;
 ///

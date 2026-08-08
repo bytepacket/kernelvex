@@ -34,8 +34,8 @@
 
 // TODO: implement time
 
-use typenum::{Diff, Integer, Negate, Sum, P1, Z0};
-use vexide_devices::math::Angle;
+use typenum::{Diff, Integer, Negate, P1, Sum, Z0};
+use vexide::math::Angle;
 
 /// A typed quantity with compile-time checked dimensions.
 ///
@@ -71,12 +71,12 @@ where
 
 /// A 2D vector with generic component type.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Vector2<T> {
+pub struct Vec2<T> {
     pub x: T,
     pub y: T,
 }
 
-impl<T> Vector2<T> {
+impl<T> Vec2<T> {
     #[inline]
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }
@@ -89,10 +89,9 @@ impl<T> Vector2<T> {
     {
         (self.x, self.y)
     }
-
 }
 
-impl Vector2<f64> {
+impl Vec2<f64> {
     #[inline]
     pub const fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
@@ -147,7 +146,7 @@ impl Vector2<f64> {
     }
 }
 
-impl<L: Integer, T: Integer, A: Integer> Vector2<RQuantity<L, T, A>> {
+impl<L: Integer, T: Integer, A: Integer> Vec2<RQuantity<L, T, A>> {
     #[inline]
     pub fn zero() -> Self {
         Self {
@@ -212,12 +211,12 @@ impl<L: Integer, T: Integer, A: Integer> Vector2<RQuantity<L, T, A>> {
     }
 
     #[inline]
-    pub fn normalize(self) -> Vector2<QNumber> {
+    pub fn normalize(self) -> Vec2<QNumber> {
         let mag = self.norm().value;
         if mag == 0.0 {
-            Vector2::new(QNumber::default(), QNumber::default())
+            Vec2::new(QNumber::default(), QNumber::default())
         } else {
-            Vector2::new(
+            Vec2::new(
                 QNumber {
                     value: self.x.value / mag,
                     _phantom: std::marker::PhantomData,
@@ -241,7 +240,7 @@ impl<L: Integer, T: Integer, A: Integer> Vector2<RQuantity<L, T, A>> {
     }
 }
 
-impl<T> std::ops::Add for Vector2<T>
+impl<T> std::ops::Add for Vec2<T>
 where
     T: std::ops::Add<Output = T>,
 {
@@ -255,7 +254,7 @@ where
     }
 }
 
-impl<T> std::ops::Sub for Vector2<T>
+impl<T> std::ops::Sub for Vec2<T>
 where
     T: std::ops::Sub<Output = T>,
 {
@@ -269,7 +268,7 @@ where
     }
 }
 
-impl<T> std::ops::Neg for Vector2<T>
+impl<T> std::ops::Neg for Vec2<T>
 where
     T: std::ops::Neg<Output = T>,
 {
@@ -283,7 +282,7 @@ where
     }
 }
 
-impl<T> std::ops::AddAssign for Vector2<T>
+impl<T> std::ops::AddAssign for Vec2<T>
 where
     T: std::ops::AddAssign,
 {
@@ -293,7 +292,7 @@ where
     }
 }
 
-impl<T> std::ops::SubAssign for Vector2<T>
+impl<T> std::ops::SubAssign for Vec2<T>
 where
     T: std::ops::SubAssign,
 {
@@ -303,7 +302,7 @@ where
     }
 }
 
-impl<T> std::ops::Mul<f64> for Vector2<T>
+impl<T> std::ops::Mul<f64> for Vec2<T>
 where
     T: std::ops::Mul<f64, Output = T>,
 {
@@ -317,7 +316,7 @@ where
     }
 }
 
-impl<T> std::ops::Div<f64> for Vector2<T>
+impl<T> std::ops::Div<f64> for Vec2<T>
 where
     T: std::ops::Div<f64, Output = T>,
 {
@@ -331,12 +330,9 @@ where
     }
 }
 
-impl Default for Vector2<f64> {
+impl Default for Vec2<f64> {
     fn default() -> Self {
-        Self {
-            x: 0.,
-            y: 0.,
-        }
+        Self { x: 0., y: 0. }
     }
 }
 
@@ -429,7 +425,6 @@ where
     L: Integer + std::ops::Neg,
     T: Integer + std::ops::Neg,
     A: Integer + std::ops::Neg,
-
     Negate<L>: Integer,
     Negate<T>: Integer,
     Negate<A>: Integer,
@@ -582,22 +577,22 @@ pub type QTime = RQuantity<Z0, P1, Z0>;
 #[allow(dead_code)]
 pub type QAngle = RQuantity<Z0, Z0, P1>;
 
-impl From<Vector2<f64>> for nalgebra::Vector2<f64> {
-    fn from(value: Vector2<f64>) -> Self {
+impl From<Vec2<f64>> for nalgebra::Vector2<f64> {
+    fn from(value: Vec2<f64>) -> Self {
         nalgebra::Vector2::new(value.x, value.y)
     }
 }
 
-impl From<nalgebra::Vector2<f64>> for Vector2<f64> {
+impl From<nalgebra::Vector2<f64>> for Vec2<f64> {
     fn from(value: nalgebra::Vector2<f64>) -> Self {
         Self::new(value.x, value.y)
     }
 }
 
-impl std::ops::Mul<Vector2<f64>> for f64 {
-    type Output = Vector2<f64>;
+impl std::ops::Mul<Vec2<f64>> for f64 {
+    type Output = Vec2<f64>;
 
-    fn mul(self, rhs: Vector2<f64>) -> Self::Output {
+    fn mul(self, rhs: Vec2<f64>) -> Self::Output {
         rhs * self
     }
 }

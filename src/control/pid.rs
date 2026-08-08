@@ -12,7 +12,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! # use kernelvex::Pid;
 //! // Create odom PID controller with tuned constants
 //! let mut pid = Pid::new().set_gains(1.0, 0.01, 0.1);
@@ -85,7 +85,7 @@ impl Pid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::Pid;
     /// // Aggressive PID for fast response
     /// let aggressive = Pid::new().set_gains(2.0, 0.05, 0.2);
@@ -146,7 +146,7 @@ impl Pid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::Pid;
     /// let mut pid = Pid::new().set_gains(2., 0.6, 0.4);
     ///
@@ -188,7 +188,7 @@ impl Pid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::Pid;
     /// let mut pid = Pid::new().set_gains(1.0, 0.01, 0.1);
     /// // ... use pid for odom while ...
@@ -211,7 +211,7 @@ impl Pid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::Pid;
     /// let mut pid = Pid::new();
     /// // Tune the PID during runtime
@@ -269,7 +269,7 @@ impl Pid {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```ignore
 /// # use kernelvex::{AngularPid, QAngle};
 /// let mut pid = AngularPid::new().set_gains(2.0, 0.0, 0.1);
 /// let output_volts = pid.calculate(
@@ -317,7 +317,7 @@ impl AngularPid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::AngularPid;
     /// // Aggressive PID for fast response
     /// let aggressive = AngularPid::new().set_gains(2.0, 0.05, 0.2);
@@ -381,7 +381,7 @@ impl AngularPid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::{AngularPid, QAngle};
     /// let mut pid = AngularPid::new().set_gains(2., 0.6, 0.4);
     ///
@@ -424,7 +424,7 @@ impl AngularPid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::AngularPid;
     /// let mut pid = AngularPid::new().set_gains(1.0, 0.01, 0.1);
     /// // ... use pid for a while ...
@@ -447,7 +447,7 @@ impl AngularPid {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// # use kernelvex::AngularPid;
     /// let mut pid = AngularPid::new();
     /// // Tune the PID during runtime

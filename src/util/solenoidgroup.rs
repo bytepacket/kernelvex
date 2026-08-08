@@ -22,8 +22,8 @@
 
 use crate::util::utils::GroupErrors;
 use std::sync::Arc;
+use vexide::adi::digital::*;
 use vexide_async::sync::Mutex;
-use vexide_devices::adi::digital::*;
 
 /// A group of pneumatic solenoids that can be controlled together.
 ///
@@ -88,7 +88,7 @@ impl SolenoidGroup {
     /// Panics if `index` is out of bounds.
     pub async fn use_at<F, R>(&self, index: usize, f: F) -> R
     where
-        F: FnOnce(&mut AdiDigitalOut) -> R
+        F: FnOnce(&mut AdiDigitalOut) -> R,
     {
         let mut guard = self.pneumatics.lock().await;
         f(&mut guard[index])
@@ -172,6 +172,8 @@ impl SolenoidGroup {
     /// If any solenoid's level cannot be read, it is treated as not matching.
     pub async fn is_level(&self, logic: LogicLevel) -> bool {
         let guard = self.pneumatics.lock().await;
-        guard.iter().all(|sol| sol.level().unwrap_or(!logic) == logic)
+        guard
+            .iter()
+            .all(|sol| sol.level().unwrap_or(!logic) == logic)
     }
 }
